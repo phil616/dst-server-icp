@@ -1,0 +1,65 @@
+# --- Python / uv ---
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.ruff_cache/
+.pytest_cache/
+.mypy_cache/
+*.pyc
+
+# --- 本地运行产物 ---
+data/
+*.sqlite3
+*.log
+
+# --- 本地配置 ---
+/config.yaml
+
+# --- 前端构建产物 ---
+/src/dst_serverd/static/
+
+# --- 环境与密钥 ---
+.env
+/etc-env
+*.pem
+*.key
+
+# --- DST 运行根 ---
+/dst-base/
+
+# --- 真实存档样本 ---
+/Cluster_*/
+/token.txt
+
+# --- Node / 前端 ---
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/*.tsbuildinfo
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+*.sublime-*
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+.elevation
+
+# --- 临时文件 ---
+*.tmp
+*.bak
+*.orig

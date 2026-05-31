@@ -1,0 +1,181 @@
+// 与后端 JSON 形状对应的类型(见 src/dst_serverd/models.py / supervisor）。
+
+export type ShardState =
+  | "stopped" | "starting" | "running" | "ready" | "stopping" | "crashed" | "created";
+
+export interface ProcResource {
+  pid: number;
+  cpu_percent: number;
+  rss_mb: number;
+  num_threads: number;
+  status: string;
+  create_time: number;
+}
+
+export interface LoadedMod {
+  name: string;
+  version: string;
+  status: string; // loaded | failed
+}
+
+export interface ShardRuntime {
+  key: string;
+  cluster: string;
+  shard: string;
+  state: ShardState;
+  pid: number | null;
+  ready: boolean;
+  desired_running: boolean;
+  players: string[];
+  loaded_mods: Record<string, LoadedMod>;
+  resource: ProcResource | null;
+}
+
+export interface Shard {
+  id: number;
+  instance_id: number;
+  role: string;
+  shard_dir_name: string;
+  is_master: boolean;
+  server_port: number;
+  master_server_port: number;
+  authentication_port: number;
+  worldgen_preset: string;
+  runtime: ShardRuntime | null;
+}
+
+export interface Instance {
+  id: number;
+  name: string;
+  cluster_dir_name: string;
+  online: boolean;
+  game_mode: string;
+  pvp: boolean;
+  max_players: number;
+  max_snapshots: number;
+  pause_when_empty: boolean;
+  cluster_password: string;
+  cluster_intention: string;
+  cluster_description: string;
+  cluster_key: string;
+  master_port: number;
+  token: string;
+  has_token: boolean;
+  tick_rate: number;
+  vote_enabled: boolean;
+  autosaver_enabled: boolean;
+  whitelist_slots: number;
+  lan_only_cluster: boolean;
+  created_at: number;
+  desired_status: string;
+  status: ShardState;
+}
+
+export type AccessKind = "admin" | "whitelist" | "blocklist";
+
+export interface AccessEntry {
+  id: number;
+  instance_id: number;
+  kind: AccessKind;
+  klei_id: string;
+  note: string;
+}
+
+export interface SessionInfo {
+  session_id: string;
+  files: number;
+  size: number;
+  mtime: number;
+}
+
+export interface ShardSave {
+  shard: string;
+  exists: boolean;
+  size: number;
+  sessions: SessionInfo[];
+  snapshot_files: number;
+}
+
+export interface SaveInfo {
+  max_snapshots: number;
+  shards: ShardSave[];
+}
+
+export interface BackupPolicy {
+  auto_enabled: boolean;
+  interval_min: number;
+  retention: number;
+}
+
+export type ModUpdateStatus = "latest" | "outdated" | "unknown" | "unchecked" | "manual";
+
+export interface Mod {
+  id: number;
+  instance_id: number;
+  workshop_id: string;
+  name: string;
+  enabled: boolean;
+  source: string;
+  ref: string;
+  config: Record<string, unknown>;
+  title: string;
+  installed_time_updated: number;
+  workshop_time_updated: number;
+  last_checked: number;
+  update_status: ModUpdateStatus;
+  loaded: Record<string, LoadedMod>; // shard_dir_name -> 加载信息
+}
+
+export interface InstanceView {
+  instance: Instance;
+  shards: Shard[];
+  mods: Mod[];
+  access: AccessEntry[];
+}
+
+export interface Job {
+  id: number;
+  action: string;
+  status: "queued" | "running" | "success" | "failed";
+  returncode: number | null;
+  error: string;
+  created_at: number;
+  started_at: number | null;
+  finished_at: number | null;
+}
+
+export interface Backup {
+  id: number;
+  instance_id: number;
+  type: string;
+  trigger: string;
+  path: string;
+  size: number;
+  created_at: number;
+  note: string;
+}
+
+export interface ProxyCfg {
+  enabled: boolean;
+  mode: string;
+  scheme: string;
+  host: string;
+  port: number;
+  username: string;
+  password: string;
+  no_proxy: string;
+  active: boolean;
+}
+
+export interface CreateInstancePayload {
+  name: string;
+  online: boolean;
+  token: string;
+  game_mode: string;
+  pvp: boolean;
+  max_players: number;
+  caves: boolean;
+  cluster_intention?: string;
+  cluster_password?: string;
+  cluster_description?: string;
+}

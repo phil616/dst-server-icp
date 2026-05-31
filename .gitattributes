@@ -1,0 +1,59 @@
+# --- 文本文件行尾归一化 ---
+* text=auto
+
+# --- Python ---
+*.py text diff=python
+*.pyi text diff=python
+*.toml text
+*.yaml text
+*.yml text
+*.cfg text
+*.ini text
+*.lua text
+*.txt text
+
+# --- 前端 ---
+*.ts text diff=typescript
+*.tsx text diff=typescript
+*.js text diff=javascript
+*.jsx text diff=javascript
+*.json text
+*.css text
+*.scss text
+*.less text
+*.html text
+*.svg text
+
+# --- 文档 ---
+*.md text diff=markdown
+
+# --- Shell / Scripts ---
+*.sh text eol=lf
+*.bash text eol=lf
+
+# --- 二进制:图片 ---
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+
+# --- 二进制:字体 ---
+*.woff binary
+*.woff2 binary
+*.eot binary
+*.ttf binary
+
+# --- 二进制:归档 ---
+*.zip binary
+*.tar.gz binary
+*.gz binary
+*.tar binary
+*.7z binary
+
+# --- 二进制:编译产物 ---
+*.so binary
+*.dll binary
+*.exe binary
+*.whl binary
