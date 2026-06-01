@@ -40,6 +40,22 @@ sudo systemctl enable --now dst-serverd
 
 关键: `KillMode=process`(重启后端不杀游戏), `Restart=always`。
 
+## 离线部署(U 盘 / 内网,无需联网)
+
+面向无法下载 uv、连不上 GitHub/PyPI/npm 的环境。在**有网的构建机**上打一个完全自包含的包(内置可重定位的 CPython 3.12 + 全部依赖 + 预构建前端),拷到目标机解压即可运行:
+
+```bash
+# 构建机(需 uv):产出 dist/dst-serverd-<ver>-linux-x86_64.tar.gz
+./scripts/build-bundle.sh
+
+# 目标机(完全离线):解压后二选一
+sudo ./install.sh     # systemd 常驻,装到 /opt/dst-serverd,配置在 /etc/dst-serverd/config.yaml
+./run.sh              # 免 root,当前目录前台试跑
+```
+
+目标机**无需** Python / uv / Node / pip。`sudo ./install.sh --uninstall` 卸载服务(保留数据)。
+注:DST 本体 / SteamCMD / MOD 仍需运行时从 Steam 拉取(可在面板「代理设置」配代理)。
+
 ## 目录结构
 
 ```

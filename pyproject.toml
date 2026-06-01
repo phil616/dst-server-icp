@@ -26,6 +26,10 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/dst_serverd"]
+# static/ 是前端构建产物(被 .gitignore 忽略),force-include 确保它仍进 wheel,
+# 否则 pip/uv 安装后包内缺前端,后端 `/` 无法托管控制台。
+[tool.hatch.build.targets.wheel.force-include]
+"src/dst_serverd/static" = "dst_serverd/static"
 
 [tool.ruff]
 line-length = 100
