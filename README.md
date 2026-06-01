@@ -28,17 +28,6 @@ uv run uvicorn dst_serverd.main:app --port 8000
 - **导入存档** — 上传压缩包，解析配置、重分配端口、保留存档
 - **可观测** — 活动流 + Shard 日志经 WebSocket 实时推送
 
-## 冒烟测试(无需真实 DST 游戏)
-
-```bash
-uv run python scripts/smoke_test.py      # 进程托管
-uv run python scripts/smoke_full.py      # 全栈流程
-uv run python scripts/smoke_config.py    # 配置/访问控制
-uv run python scripts/smoke_import.py    # 存档导入
-uv run python scripts/smoke_modupdate.py # MOD 更新检测
-uv run python scripts/smoke_repair.py    # MOD 下载修复
-```
-
 ## 生产部署
 
 ```bash
@@ -64,7 +53,7 @@ src/dst_serverd/          # Python 后端
 └── static/               # 前端构建产物
 frontend/                 # React + TS + Ant Design(Vite)源码
 docs/                     # 文档
-scripts/                  # 冒烟测试脚本
+scripts/                  # 测试辅助脚本
 deploy/                   # systemd unit
 ```
 

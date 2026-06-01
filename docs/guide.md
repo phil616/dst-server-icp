@@ -564,49 +564,9 @@ curl -X PUT http://127.0.0.1:8000/api/proxy \
 
 ---
 
-## 13. 冒烟测试
+## 13. 生产部署
 
-项目提供了 6 套冒烟测试脚本，使用 `fake_dst.py` 模拟 DST 游戏进程，**无需真实安装游戏**即可验证各模块功能。
-
-```bash
-# 先安装依赖
-uv sync
-
-# 进程托管 pipeline 测试
-uv run python scripts/smoke_test.py
-
-# 全栈测试（建实例/启动/接管/备份/启停删）
-uv run python scripts/smoke_full.py
-
-# 配置/访问/存档/备份测试
-uv run python scripts/smoke_config.py
-
-# 导入外部存档测试
-uv run python scripts/smoke_import.py
-
-# MOD 更新检测 + 加载确认测试
-uv run python scripts/smoke_modupdate.py
-
-# MOD 下载（SteamCMD）+ steamclient 修复 + 超时测试
-uv run python scripts/smoke_repair.py
-```
-
-各脚本测试要点：
-
-| 脚本 | 核心验证点 |
-|------|-----------|
-| `smoke_test.py` | setsid 启动 → READY 确认 → FIFO 注入 → 重启重连 → 优雅停服 |
-| `smoke_full.py` | 全服务层编排：建实例/渲染/端口/MOD/启停/重连/备份/更新/删除 |
-| `smoke_config.py` | 配置 roundtrip、访问控制文件生成、存档自省、备份保留滚动 |
-| `smoke_import.py` | 存档解析、端口冲突解决、保留 save 数据续世界 |
-| `smoke_modupdate.py` | 状态机（unchecked→latest→outdated）、日志解析加载确认 |
-| `smoke_repair.py` | SteamCMD 下载、steamclient 修复、子进程超时处理 |
-
----
-
-## 14. 生产部署
-
-### 14.1 systemd 托管
+### 13.1 systemd 托管
 
 ```bash
 # 1) 构建前端
@@ -625,7 +585,7 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now dst-serverd
 ```
 
-### 14.2 systemd 单元要点
+### 13.2 systemd 单元要点
 
 ```ini
 [Service]
@@ -645,7 +605,7 @@ LimitNOFILE=65536
 - **直接调用 `.venv/bin/uvicorn`** — 确保 systemd 主 PID 即 Python 进程
 - **`Restart=always`** — 崩溃自动恢复
 
-### 14.3 日志查看
+### 13.3 日志查看
 
 ```bash
 # 后端日志
@@ -660,13 +620,13 @@ journalctl -u dst-serverd -f
 
 ---
 
-## 15. 故障排除
+## 14. 故障排除
 
-### 15.1 前端显示"尚未构建"
+### 14.1 前端显示"尚未构建"
 
 执行 `./make-web.sh` 构建前端，然后刷新页面。
 
-### 15.2 后端启动失败
+### 14.2 后端启动失败
 
 ```bash
 # 检查 config.yaml 是否存在
@@ -679,7 +639,7 @@ uv run uvicorn dst_serverd.main:app --port 8000
 ss -tlnp | grep 8000
 ```
 
-### 15.3 Shard 进程不启动
+### 14.3 Shard 进程不启动
 
 ```bash
 # 查看具体 Shard 日志
@@ -692,7 +652,7 @@ ss -tlnp | grep 8000
 cat /opt/dst/clusters/<Cluster>/cluster_token.txt
 ```
 
-### 15.4 MOD 下载失败
+### 14.4 MOD 下载失败
 
 1. 检查网络连接（尤其是中国大陆 VPS）
 2. 配置代理：Web 控制台 → **代理** → 设置 HTTP/SOCKS5 代理
@@ -701,7 +661,7 @@ cat /opt/dst/clusters/<Cluster>/cluster_token.txt
    curl -X POST http://127.0.0.1:8000/api/install/repair-library
    ```
 
-### 15.5 端口冲突
+### 14.5 端口冲突
 
 创建实例时端口自动分配，如果手动修改可能会冲突。检查端口占用：
 
@@ -709,7 +669,7 @@ cat /opt/dst/clusters/<Cluster>/cluster_token.txt
 ss -tlnp | grep -E '1099[0-9]|1101[0-8]|2701[0-9]|876[6-8]|1088[0-9]|1089[0-8]'
 ```
 
-### 15.6 后端重启后 Shard 未接管
+### 14.6 后端重启后 Shard 未接管
 
 检查 `run/` 目录下的 PID 文件和 Spec 文件：
 
