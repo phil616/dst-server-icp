@@ -182,9 +182,9 @@ def start_instance(instance_id: int, request: Request) -> dict:
 
 
 @router.post("/instances/{instance_id}/stop")
-def stop_instance(instance_id: int, request: Request, save: bool = True) -> dict:
+def stop_instance(instance_id: int, request: Request, save: bool = True, force: bool = False) -> dict:
     inst = deps.require_instance(request, instance_id)
-    svc.stop_instance(deps.db(request), deps.sup(request), inst, save=save)
+    svc.stop_instance(deps.db(request), deps.sup(request), inst, save=save, force=force)
     return _instance_view(request, deps.require_instance(request, instance_id))
 
 

@@ -16,9 +16,9 @@ from ..config import Settings
 from ..db import Database
 from ..models import AccessEntry, Instance, Mod, Shard
 from ..ports import (
-    SERVER_PORT_RANGE,
     allocate_master_port,
     allocate_shard_ports,
+    is_port_free,
     used_ports,
 )
 from ..render import write_instance_files
@@ -236,10 +236,8 @@ def _validate_shard_ports(db: Database, shard: Shard, sp: int, msp: int, ap: int
             raise InstanceError(f"{label} 必须为整数")
     if len({sp, msp, ap}) != 3:
         raise InstanceError("server_port / master_server_port / authentication_port 三者不能相同")
-    if sp not in SERVER_PORT_RANGE:
-        raise InstanceError(
-            f"server_port 必须在 {SERVER_PORT_RANGE.start}–{SERVER_PORT_RANGE.stop - 1}"
-            "(否则无法被局域网列表发现)")
+    if not (1024 <= sp <= 65535):
+        raise InstanceError("server_port 必须在 1024–65535")
     if not (1024 <= msp <= 65535):
         raise InstanceError("master_server_port 必须在 1024–65535")
     if not (1024 <= ap <= 65535):
@@ -256,6 +254,18 @@ def _validate_shard_ports(db: Database, shard: Shard, sp: int, msp: int, ap: int
     # server_port 不能与任一 Cluster 的 master_port(Shard 间通信)冲突
     if sp in used_ports(db, "master_port", table="server_instances"):
         raise InstanceError(f"server_port {sp} 与某 Cluster 的 master_port 冲突,请换一个")
+
+    # OS 层预检:仅检查发生变更的端口(未变更的端口正被本 Shard 自身占用,属正常)。
+    # 捕获 DB 未跟踪的占用——外部程序或上次崩溃残留的僵尸进程,占用则拒绝本次修改。
+    for label, new_val, old_val in (
+        ("server_port", sp, shard.server_port),
+        ("master_server_port", msp, shard.master_server_port),
+        ("authentication_port", ap, shard.authentication_port),
+    ):
+        if new_val != old_val and not is_port_free(new_val):
+            raise InstanceError(
+                f"{label} 端口 {new_val} 已被系统占用(可能是其它程序或残留的僵尸进程),"
+                "已拒绝本次修改,请改用其它端口或先释放该端口")
 
 
 def update_shard_ports(
@@ -338,13 +348,22 @@ def start_instance(db: Database, settings: Settings, sup: Supervisor, inst: Inst
 
 
 def stop_instance(
-    db: Database, sup: Supervisor, inst: Instance, *, save: bool = True
+    db: Database, sup: Supervisor, inst: Instance, *, save: bool = True, force: bool = False
 ) -> None:
-    log.info("■ 停止实例 cluster=%s(save=%s)", inst.cluster_dir_name, save)
+    mode = "强制" if force else "优雅"
+    log.info("■ %s停止实例 cluster=%s(save=%s)", mode, inst.cluster_dir_name, save and not force)
     db.execute("UPDATE server_instances SET desired_status='stopped' WHERE id=?", (inst.id,))
+    # 逐个停;单个 Shard 失败不得中断其余(此前 Master 异常会导致 Caves 漏停)
     for shard in get_shards(db, inst.id):
-        log.info("  → 优雅关停 Shard %s(c_shutdown)…", shard.shard_dir_name)
-        sup.stop(inst.cluster_dir_name, shard.shard_dir_name, save=save)
+        log.info("  → %s关停 Shard %s …", mode, shard.shard_dir_name)
+        try:
+            sup.stop(inst.cluster_dir_name, shard.shard_dir_name, save=save, force=force)
+        except Exception:  # noqa: BLE001 保证继续关停其余 Shard
+            log.exception("关停 Shard %s 失败,继续处理其余 Shard", shard.shard_dir_name)
+    # 兜底:系统层清掉该 cluster 任何残留进程(句柄丢失/僵尸进程占端口)
+    killed = sup.kill_orphans(inst.cluster_dir_name)
+    if killed:
+        log.warning("  ⚠ 清理残留进程 %d 个 cluster=%s", killed, inst.cluster_dir_name)
     db.execute("UPDATE server_instances SET status='stopped' WHERE id=?", (inst.id,))
 
 

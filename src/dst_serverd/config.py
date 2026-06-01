@@ -27,6 +27,13 @@ class Settings(BaseModel):
     db: Path = Path("data/dstd.sqlite3")
     secret_key: str = "change-me"
 
+    # ---- 在线模式默认 cluster_token ----
+    # 实例开启 online 但未单独配置 token 时,回退使用此 token 激活在线模式
+    # (避免退回离线/LAN-only 而被引擎强制 server_port ∈ [10998,11018])。
+    default_cluster_token: str = (
+        "pds-g^KU_98gUIb6n^UTaH6k+KMbyLZAk+fmMC5mpgUvKMv4qH51wI9B8ZZgQ="
+    )
+
     # ---- 关停超时(秒) ----
     shutdown_grace: float = 30.0
     sigterm_grace: float = 10.0

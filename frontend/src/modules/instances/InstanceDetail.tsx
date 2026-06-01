@@ -28,7 +28,7 @@ export function InstanceDetail() {
   if (isLoading || !view) return <Spin />;
   const { instance, shards, mods, access } = view;
 
-  const run = async (act: "start" | "stop" | "restart") => {
+  const run = async (act: "start" | "stop" | "force-stop" | "restart") => {
     try { await action.mutateAsync({ id: instanceId, action: act }); message.success("已操作"); }
     catch (e) { message.error((e as Error).message); }
   };
@@ -87,6 +87,13 @@ export function InstanceDetail() {
         <Space wrap>
           <Button type="primary" onClick={() => run("start")}>启动</Button>
           <Button danger onClick={() => run("stop")}>停止</Button>
+          <Popconfirm
+            title="强制停止?"
+            description="将跳过存档、直接从系统层 kill 掉 Master 与所有 Caves 进程,未保存的进度会丢失。"
+            okText="强制停止" okButtonProps={{ danger: true }} cancelText="取消"
+            onConfirm={() => run("force-stop")}>
+            <Button danger>强制停止</Button>
+          </Popconfirm>
           <Button onClick={() => run("restart")}>重启</Button>
           <Button loading={backup.isPending}
             onClick={async () => { await backup.mutateAsync({ id: instanceId, note: "手动" }); message.success("已备份"); }}>

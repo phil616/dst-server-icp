@@ -135,8 +135,11 @@ def write_instance_files(
     cdir.mkdir(parents=True, exist_ok=True)
 
     _write(cdir / "cluster.ini", render_cluster_ini(inst, has_secondary))
-    if inst.online and inst.token:
-        _write(cdir / "cluster_token.txt", inst.token.strip() + "\n")
+    if inst.online:
+        # 在线模式必须有 token:优先用实例自配的;未配置则回退到默认 token,
+        # 否则没有 token 会被引擎退回离线/LAN-only 并强制端口区间。
+        token = (inst.token or "").strip() or settings.default_cluster_token.strip()
+        _write(cdir / "cluster_token.txt", token + "\n")
 
     # 访问控制列表:有条目则写文件,无则删除文件(避免空文件干扰)
     for kind, fname in _LIST_FILES.items():

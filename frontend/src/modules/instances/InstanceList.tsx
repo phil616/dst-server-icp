@@ -16,8 +16,8 @@ export function InstanceList() {
   const [createOpen, setCreateOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
 
-  const run = async (id: number, act: "start" | "stop" | "restart") => {
-    try { await action.mutateAsync({ id, action: act }); message.success(`已${{ start: "启动", stop: "停止", restart: "重启" }[act]}`); }
+  const run = async (id: number, act: "start" | "stop" | "force-stop" | "restart") => {
+    try { await action.mutateAsync({ id, action: act }); message.success(`已${{ start: "启动", stop: "停止", "force-stop": "强制停止", restart: "重启" }[act]}`); }
     catch (e) { message.error((e as Error).message); }
   };
 
@@ -38,6 +38,13 @@ export function InstanceList() {
         <Space wrap>
           <Button size="small" type="primary" onClick={() => run(v.instance.id, "start")}>启动</Button>
           <Button size="small" danger onClick={() => run(v.instance.id, "stop")}>停止</Button>
+          <Popconfirm
+            title="强制停止?"
+            description="将跳过存档、直接从系统层 kill 掉 Master 与所有 Caves 进程,未保存的进度会丢失。"
+            okText="强制停止" okButtonProps={{ danger: true }} cancelText="取消"
+            onConfirm={() => run(v.instance.id, "force-stop")}>
+            <Button size="small" danger>强制停止</Button>
+          </Popconfirm>
           <Button size="small" onClick={() => run(v.instance.id, "restart")}>重启</Button>
           <Link to={`/instances/${v.instance.id}`}><Button size="small">详情</Button></Link>
           <Popconfirm title="删除实例及其存档?" okButtonProps={{ danger: true }}

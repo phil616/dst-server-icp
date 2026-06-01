@@ -14,11 +14,18 @@ import threading
 import time
 from collections.abc import Iterable
 
+import psutil
+
 from ..config import Settings
 from .process import ShardProcess, ShardState
 from .spec import ShardSpec, shard_key
 
 log = logging.getLogger("dst_serverd.supervisor")
+
+
+def _argv_has(cmd: list[str], flag: str, value: str) -> bool:
+    """argv 中存在 `flag value` 相邻对(精确相等,避免前缀名相互误伤)。"""
+    return any(cmd[i] == flag and cmd[i + 1] == value for i in range(len(cmd) - 1))
 
 
 class Supervisor:
@@ -77,21 +84,52 @@ class Supervisor:
             log.info("started shard %s pid=%s", spec.key, sp.pid)
             return sp
 
-    def stop(self, cluster: str, shard: str, *, save: bool = True) -> bool:
+    def stop(self, cluster: str, shard: str, *, save: bool = True, force: bool = False) -> bool:
         with self._lock:
             sp = self.get(cluster, shard)
             if sp is None:
+                # 注册表里没有(reattach 失败/句柄丢失):仍做系统层兜底清理
+                self.kill_orphans(cluster, shard)
                 return False
             sp.spec.desired_running = False
             sp.spec.save(sp.spec_path)
-            sp.stop(
-                save=save,
-                grace=self.settings.shutdown_grace,
-                sigterm_grace=self.settings.sigterm_grace,
-            )
+            if force:
+                sp.kill()
+            else:
+                sp.stop(
+                    save=save,
+                    grace=self.settings.shutdown_grace,
+                    sigterm_grace=self.settings.sigterm_grace,
+                )
+            # 兜底:清理任何仍匹配该 cluster/shard 的残留进程(僵尸/句柄丢失)
+            self.kill_orphans(cluster, shard)
             self._restart_after.pop(sp.spec.key, None)
-            log.info("stopped shard %s", sp.spec.key)
+            log.info("stopped shard %s (force=%s)", sp.spec.key, force)
             return True
+
+    def kill_orphans(self, cluster: str, shard: str | None = None) -> int:
+        """系统层兜底:SIGKILL 掉 argv 匹配该 cluster(可选 shard)的 DST 进程。
+
+        覆盖 supervisor 句柄丢失、reattach 失败、上次崩溃残留等情况——这些进程占着
+        UDP 端口却不在注册表里,导致重启报 SOCKET_PORT_ALREADY_IN_USE。返回杀掉的数量。
+        """
+        killed = 0
+        for proc in psutil.process_iter(["cmdline"]):
+            try:
+                cmd = proc.info["cmdline"] or []
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+            if not _argv_has(cmd, "-cluster", cluster):
+                continue
+            if shard is not None and not _argv_has(cmd, "-shard", shard):
+                continue
+            try:
+                proc.kill()
+                killed += 1
+                log.warning("kill_orphans: SIGKILL pid=%s cluster=%s shard=%s", proc.pid, cluster, shard)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+        return killed
 
     def remove(self, cluster: str, shard: str) -> None:
         """停止 Shard 并清除其 spec/注册项(用于删除实例)。"""

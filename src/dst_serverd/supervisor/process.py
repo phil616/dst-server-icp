@@ -177,6 +177,19 @@ class ShardProcess:
         self._wait_exit(5.0)
         self._cleanup_after_exit()
 
+    def kill(self) -> None:
+        """强制停止:跳过优雅保存与 SIGTERM,直接 SIGKILL 整个进程组并清理。
+
+        用于 c_shutdown/SIGTERM 失效、进程卡死等场景;不保存存档(由调用方知情)。
+        """
+        if not self.is_alive():
+            self._cleanup_after_exit()
+            return
+        self.state = ShardState.STOPPING
+        self._signal_group(signal.SIGKILL)
+        self._wait_exit(5.0)
+        self._cleanup_after_exit()
+
     def _wait_exit(self, timeout: float) -> bool:
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:

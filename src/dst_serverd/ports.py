@@ -1,12 +1,15 @@
 """端口分配(见 DESIGN.md 1.7 / 3.1)。
 
 约束:
-- server_port ∈ [10998, 11018] 才能被 LAN 列表看到;同机各 Shard 必须不同。
+- server_port:同机各 Shard 必须不同。[10998, 11018] 只是自动分配时的默认池
+  (该范围内能被 LAN 列表发现),并非硬性限制——用户可自定义为任意 1024–65535 端口。
 - master_server_port / authentication_port(Steam 内部)同机各 Shard 必须不同。
 - master_port(Shard 间)每 Cluster 一个,且须 ≠ 任一 server_port。
 """
 
 from __future__ import annotations
+
+import socket
 
 from .db import Database
 
@@ -34,6 +37,23 @@ def _pick(candidates: range, used: set[int], also_avoid: set[int] = frozenset())
 
 def used_ports(db: Database, column: str, table: str = "shards") -> set[int]:
     return _used(db, column, table)
+
+
+def is_port_free(port: int) -> bool:
+    """OS 层预检:尝试绑定该 UDP 端口,成功即空闲、失败即被占用。
+
+    DST 的 server_port / master_server_port / authentication_port 均为 UDP,
+    故用 SOCK_DGRAM 探测。不设 SO_REUSEADDR,以便真实反映占用状态
+    (含 DB 未跟踪的外部程序或上次崩溃残留的僵尸进程)。
+    """
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.bind(("0.0.0.0", port))
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
 
 
 def resolve_port(

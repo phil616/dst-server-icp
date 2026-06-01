@@ -17,8 +17,8 @@ export const deleteInstance = (id: number) =>
   http.delete(`/api/instances/${id}`).then((r) => r.data);
 export const startInstance = (id: number) =>
   http.post(`/api/instances/${id}/start`).then((r) => r.data);
-export const stopInstance = (id: number, save = true) =>
-  http.post(`/api/instances/${id}/stop?save=${save}`).then((r) => r.data);
+export const stopInstance = (id: number, save = true, force = false) =>
+  http.post(`/api/instances/${id}/stop?save=${save}&force=${force}`).then((r) => r.data);
 export const restartInstance = (id: number) =>
   http.post(`/api/instances/${id}/restart`).then((r) => r.data);
 export const updateInstance = (id: number, patch: Partial<Instance>) =>

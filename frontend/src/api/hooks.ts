@@ -52,9 +52,10 @@ export const useImportInstance = () => {
 export const useInstanceAction = () => {
   const inv = useInvalidate();
   return useMutation({
-    mutationFn: ({ id, action }: { id: number; action: "start" | "stop" | "restart" }) =>
+    mutationFn: ({ id, action }: { id: number; action: "start" | "stop" | "force-stop" | "restart" }) =>
       action === "start" ? api.startInstance(id)
         : action === "stop" ? api.stopInstance(id)
+        : action === "force-stop" ? api.stopInstance(id, false, true)  // 不保存、系统层 kill
         : api.restartInstance(id),
     onSuccess: (_d, v) => inv(v.id),
   });

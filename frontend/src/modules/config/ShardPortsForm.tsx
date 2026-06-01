@@ -39,7 +39,7 @@ export function ShardPortsForm({ instanceId, shards }: { instanceId: number; sha
   return (
     <Card size="small" title="Shard 端口设置">
       <Alert type="info" banner style={{ marginBottom: 16 }}
-        message="自定义各 Shard(Master / Caves)的端口,保存后写回各自的 server.ini。玩家端口(server_port)须在 10998–11018 才能被局域网列表发现;改动需重启对应 Shard 生效。如果使用内网穿透请自行对应端口号" />
+        message="自定义各 Shard(Master / Caves)的端口,保存后写回各自的 server.ini。玩家端口(server_port)默认 10998–11018 便于被局域网列表发现,但不强制,可设为任意 1024–65535 端口;改动需重启对应 Shard 生效。如果使用内网穿透请自行对应端口号" />
       {running && (
         <Alert type="warning" banner style={{ marginBottom: 16 }}
           message="该实例正在运行,修改端口不会立即生效,请保存后重启对应 Shard。" />
@@ -52,9 +52,9 @@ export function ShardPortsForm({ instanceId, shards }: { instanceId: number; sha
                 <Tag color={s.is_master ? "gold" : "default"}>{s.shard_dir_name}</Tag>
               </div>
               <Form.Item label="玩家端口 server_port" name={`${s.shard_dir_name}__server_port`}
-                rules={[{ required: true, type: "number", min: 10998, max: 11018,
-                  message: "10998–11018" }]} style={{ marginBottom: 0 }}>
-                <InputNumber min={10998} max={11018} style={{ width: 190 }} />
+                rules={[{ required: true, type: "number", min: 1024, max: 65535,
+                  message: "1024–65535" }]} style={{ marginBottom: 0 }}>
+                <InputNumber min={1024} max={65535} style={{ width: 190 }} />
               </Form.Item>
               <Form.Item label="master_server_port" name={`${s.shard_dir_name}__master_server_port`}
                 rules={[{ required: true, type: "number", min: 1024, max: 65535,
