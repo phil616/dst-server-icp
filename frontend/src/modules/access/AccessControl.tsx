@@ -28,7 +28,7 @@ function ListCard({ instanceId, kind, title, color, desc, entries, slots }: {
 
   return (
     <Card size="small" title={<span><Tag color={color}>{title}</Tag></span>}>
-      <div style={{ color: "#8b97a8", fontSize: 12, marginBottom: 8 }}>{desc}</div>
+      <div style={{ color: "#646262", fontSize: 12, marginBottom: 8 }}>{desc}</div>
       {slotWarn && <Alert type="warning" banner style={{ marginBottom: 8 }}
         message={`白名单条目 ${entries.length} 个,但 whitelist_slots=${slots};建议在『配置』里改为一致。`} />}
       <Space.Compact style={{ display: "flex", marginBottom: 8 }}>
@@ -42,7 +42,7 @@ function ListCard({ instanceId, kind, title, color, desc, entries, slots }: {
             <Button key="d" size="small" danger icon={<DeleteOutlined />}
               onClick={async () => { await remove.mutateAsync({ id: instanceId, kind, kleiId: e.klei_id }); message.success("已移除"); }} />,
           ]}>
-            <code>{e.klei_id}</code>{e.note && <span style={{ color: "#6b7787" }}> · {e.note}</span>}
+            <code>{e.klei_id}</code>{e.note && <span style={{ color: "#6e6e73" }}> · {e.note}</span>}
           </List.Item>
         )} />
     </Card>

@@ -20,6 +20,9 @@ export const useShards = () =>
 export const useJobs = () =>
   useQuery({ queryKey: ["jobs"], queryFn: api.listJobs, refetchInterval: 1500 });
 
+export const useHealth = () =>
+  useQuery({ queryKey: ["health"], queryFn: api.getHealth, refetchInterval: 60_000 });
+
 export const useProxy = () =>
   useQuery({ queryKey: ["proxy"], queryFn: api.getProxy });
 

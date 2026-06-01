@@ -52,7 +52,7 @@ export function ModSearchModal(
     {
       title: "预览", width: 80, render: (_, m) => (m.preview_url
         ? <Image src={m.preview_url} width={56} height={56} style={{ objectFit: "cover", borderRadius: 4 }} />
-        : <div style={{ width: 56, height: 56, background: "#f0f0f0", borderRadius: 4 }} />),
+        : <div style={{ width: 56, height: 56, background: "#f1eeee", borderRadius: 4 }} />),
     },
     {
       title: "MOD", render: (_, m) => (

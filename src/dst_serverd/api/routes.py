@@ -6,14 +6,24 @@
 
 from __future__ import annotations
 
+import platform
+import sys
+
 from fastapi import APIRouter, Request
+
+import dst_serverd
 
 router = APIRouter(prefix="/api")
 
 
 @router.get("/health")
 def health() -> dict:
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "version": dst_serverd.__version__,
+        "python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        "platform": platform.system(),
+    }
 
 
 @router.get("/shards")

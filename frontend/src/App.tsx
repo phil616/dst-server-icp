@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
+import { About } from "./modules/about/About";
 import { Dashboard } from "./modules/dashboard/Dashboard";
 import { InstallCenter } from "./modules/install/InstallCenter";
 import { InstanceDetail } from "./modules/instances/InstanceDetail";
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/instances/:id" element={<InstanceDetail />} />
         <Route path="/install" element={<InstallCenter />} />
         <Route path="/proxy" element={<ProxySettings />} />
+        <Route path="/about" element={<About />} />
       </Routes>
     </AppLayout>
   );

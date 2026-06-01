@@ -1,2 +1,61 @@
+/* 视觉令牌(与 src/theme.ts 对应)—— 暖米色画布 + 等宽字体 + 纯平 */
+:root {
+  --canvas: #fdfcfc;
+  --surface-soft: #f8f7f7;
+  --surface-card: #f1eeee;
+  --ink: #201d1d;
+  --body: #424245;
+  --mute: #646262;
+  --stone: #6e6e73;
+  --hairline: rgba(15, 0, 0, 0.12);
+  --mono: "Berkeley Mono", "JetBrains Mono", "IBM Plex Mono", ui-monospace,
+    SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New",
+    monospace, "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji";
+}
+
+/* 暗色模式:翻转为暖近黑画布,与 darkColors 调色板保持一致 */
+html[data-theme="dark"] {
+  --canvas: #201d1d;
+  --surface-soft: #2a2626;
+  --surface-card: #322e2e;
+  --ink: #fdfcfc;
+  --body: #cfcccc;
+  --mute: #9a9898;
+  --stone: #878585;
+  --hairline: rgba(253, 252, 252, 0.14);
+}
+
 html, body, #root { height: 100%; }
-body { margin: 0; }
+
+body {
+  margin: 0;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--mono);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  /* 特殊字符优化:等宽场景关闭连字,让 != -> >= 等符号字面呈现;
+     固定 tab 宽度,优化字形渲染,保证 ASCII 标记与 CJK 混排清晰。 */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "tnum" 1;
+  font-variant-numeric: tabular-nums;
+  tab-size: 4;
+  text-rendering: optimizeLegibility;
+}
+
+code, pre, kbd, samp {
+  font-family: var(--mono);
+  font-variant-ligatures: none;
+  /* 长 ID / 特殊字符串(KU_xxxx、路径、URL)按字符换行,不溢出容器 */
+  overflow-wrap: anywhere;
+}
+
+/* 细线滚动条,贴合 flat-on-cream 风格 */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: var(--hairline);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--stone); }

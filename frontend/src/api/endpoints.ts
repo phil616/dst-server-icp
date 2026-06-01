@@ -92,6 +92,10 @@ export const getJob = (jobId: number) => http.get<Job>(`/api/jobs/${jobId}`).the
 export const getActivity = (lines = 400) =>
   http.get<{ lines: string[] }>(`/api/activity?lines=${lines}`).then((r) => r.data);
 
+// ---- 健康 / 版本 ----
+export const getHealth = () =>
+  http.get<{ status: string; version: string; python: string; platform: string }>("/api/health").then((r) => r.data);
+
 // ---- 代理 ----
 export const getProxy = () => http.get<ProxyCfg>("/api/proxy").then((r) => r.data);
 export const putProxy = (cfg: Partial<ProxyCfg>) =>

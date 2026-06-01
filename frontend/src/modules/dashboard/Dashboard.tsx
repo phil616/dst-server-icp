@@ -52,14 +52,14 @@ export function Dashboard() {
         : <Progress percent={Math.min(100, Math.round(c))} size="small" style={{ width: 100 }} /> },
     { title: "内存", dataIndex: "mem", width: 100, render: (m) => (m == null ? "—" : `${m} MB`) },
     { title: "在线玩家", dataIndex: "players",
-      render: (p: string[]) => p.length ? p.map((n) => <Tag key={n}>{n}</Tag>) : <span style={{ color: "#6b7787" }}>无</span> },
+      render: (p: string[]) => p.length ? p.map((n) => <Tag key={n}>{n}</Tag>) : <span style={{ color: "#6e6e73" }}>无</span> },
   ];
 
   return (
     <>
       <Row gutter={16} style={{ marginBottom: 16 }}>
         <Col span={6}><Card><Statistic title="实例总数" value={views.length} /></Card></Col>
-        <Col span={6}><Card><Statistic title="运行中实例" value={runningInstances} valueStyle={{ color: "#52c41a" }} /></Card></Col>
+        <Col span={6}><Card><Statistic title="运行中实例" value={runningInstances} valueStyle={{ color: "#30d158" }} /></Card></Col>
         <Col span={6}><Card><Statistic title="运行中 Shard" value={runningShards} suffix={`/ ${rows.length}`} /></Card></Col>
         <Col span={6}><Card><Statistic title="在线玩家" value={totalPlayers} /></Card></Col>
       </Row>

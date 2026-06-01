@@ -88,7 +88,7 @@ export function BackupsPanel({ instance }: { instance: Instance }) {
               </Card>
             </Col>
           ))}
-          {(!saves || saves.shards.every((s) => !s.exists)) && <Col span={24}><span style={{ color: "#6b7787" }}>暂无存档(尚未生成世界)</span></Col>}
+          {(!saves || saves.shards.every((s) => !s.exists)) && <Col span={24}><span style={{ color: "#6e6e73" }}>暂无存档(尚未生成世界)</span></Col>}
         </Row>
       </Card>
 
@@ -108,7 +108,7 @@ export function BackupsPanel({ instance }: { instance: Instance }) {
             保存策略
           </Button>
         </Space>
-        <div style={{ color: "#8b97a8", fontSize: 12, marginTop: 8 }}>
+        <div style={{ color: "#646262", fontSize: 12, marginTop: 8 }}>
           自动备份仅对运行中的实例生效;每次备份后按保留份数滚动清理。
         </div>
       </Card>

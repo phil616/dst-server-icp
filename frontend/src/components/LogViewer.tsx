@@ -1,6 +1,8 @@
 import { CopyOutlined, ClearOutlined } from "@ant-design/icons";
 import { Badge, Button, Space, Switch, Typography, message } from "antd";
 import { useEffect, useRef, useState } from "react";
+import { MONO } from "../theme";
+import { useThemeMode } from "../theme-context";
 
 interface Props {
   lines: string[];
@@ -14,6 +16,7 @@ interface Props {
 export function LogViewer({ lines, connected, onClear, height = 360, title }: Props) {
   const [autoscroll, setAutoscroll] = useState(true);
   const ref = useRef<HTMLPreElement>(null);
+  const { colors } = useThemeMode();
 
   useEffect(() => {
     if (autoscroll && ref.current) ref.current.scrollTop = ref.current.scrollHeight;
@@ -51,10 +54,11 @@ export function LogViewer({ lines, connected, onClear, height = 360, title }: Pr
       <pre
         ref={ref}
         style={{
-          height, overflow: "auto", margin: 0, padding: 12, borderRadius: 8,
-          background: "#0a0d12", border: "1px solid #2a313c", color: "#cdd6e3",
+          height, overflow: "auto", margin: 0, padding: 12, borderRadius: 4,
+          background: colors.console, border: `1px solid ${colors.consoleBorder}`,
+          color: colors.consoleText,
           fontSize: 12.5, whiteSpace: "pre-wrap", wordBreak: "break-all",
-          fontFamily: "ui-monospace, Menlo, Consolas, monospace",
+          fontFamily: MONO,
         }}
       >
         {lines.join("\n") || "（暂无日志）"}
