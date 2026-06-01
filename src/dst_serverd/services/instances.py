@@ -15,7 +15,12 @@ import time
 from ..config import Settings
 from ..db import Database
 from ..models import AccessEntry, Instance, Mod, Shard
-from ..ports import allocate_master_port, allocate_shard_ports
+from ..ports import (
+    SERVER_PORT_RANGE,
+    allocate_master_port,
+    allocate_shard_ports,
+    used_ports,
+)
 from ..render import write_instance_files
 from ..supervisor import Supervisor
 
@@ -65,6 +70,14 @@ def get_shards(db: Database, instance_id: int) -> list[Shard]:
         (instance_id,),
     )
     return [Shard.from_row(r) for r in rows]
+
+
+def get_shard(db: Database, instance_id: int, shard_dir_name: str) -> Shard | None:
+    r = db.query_one(
+        "SELECT * FROM shards WHERE instance_id = ? AND shard_dir_name = ?",
+        (instance_id, shard_dir_name),
+    )
+    return Shard.from_row(r) if r else None
 
 
 def get_mods(db: Database, instance_id: int) -> list[Mod]:
@@ -211,6 +224,69 @@ def update_instance(db: Database, settings: Settings, inst: Instance, fields: di
     rerender(db, settings, updated)
     log.info("✎ 更新实例 cluster=%s 字段=%s(多数需重启对应 Shard 生效)",
              inst.cluster_dir_name, sorted(data.keys()))
+    return updated
+
+
+# ---------- Shard 端口自定义(写回各自的 server.ini) ----------
+def _validate_shard_ports(db: Database, shard: Shard, sp: int, msp: int, ap: int) -> None:
+    """校验单个 Shard 的三端口:类型、范围、互不相同、与其它 Shard / Cluster master_port 不冲突。"""
+    for label, val in (("server_port", sp), ("master_server_port", msp),
+                       ("authentication_port", ap)):
+        if not isinstance(val, int):
+            raise InstanceError(f"{label} 必须为整数")
+    if len({sp, msp, ap}) != 3:
+        raise InstanceError("server_port / master_server_port / authentication_port 三者不能相同")
+    if sp not in SERVER_PORT_RANGE:
+        raise InstanceError(
+            f"server_port 必须在 {SERVER_PORT_RANGE.start}–{SERVER_PORT_RANGE.stop - 1}"
+            "(否则无法被局域网列表发现)")
+    if not (1024 <= msp <= 65535):
+        raise InstanceError("master_server_port 必须在 1024–65535")
+    if not (1024 <= ap <= 65535):
+        raise InstanceError("authentication_port 必须在 1024–65535")
+
+    # 同机各 Shard 必须不同(排除该 Shard 自身的旧值)
+    if sp in used_ports(db, "server_port") - {shard.server_port}:
+        raise InstanceError(f"server_port {sp} 已被其它 Shard 占用")
+    if msp in used_ports(db, "master_server_port") - {shard.master_server_port}:
+        raise InstanceError(f"master_server_port {msp} 已被其它 Shard 占用")
+    if ap in used_ports(db, "authentication_port") - {shard.authentication_port}:
+        raise InstanceError(f"authentication_port {ap} 已被其它 Shard 占用")
+
+    # server_port 不能与任一 Cluster 的 master_port(Shard 间通信)冲突
+    if sp in used_ports(db, "master_port", table="server_instances"):
+        raise InstanceError(f"server_port {sp} 与某 Cluster 的 master_port 冲突,请换一个")
+
+
+def update_shard_ports(
+    db: Database, settings: Settings, inst: Instance, shard_dir_name: str, *,
+    server_port: int | None = None,
+    master_server_port: int | None = None,
+    authentication_port: int | None = None,
+) -> Shard:
+    """自定义某个 Shard(Master / Caves)的端口并写回其 server.ini(重启该 Shard 后生效)。"""
+    shard = get_shard(db, inst.id, shard_dir_name)
+    if shard is None:
+        raise InstanceError(f"Shard 不存在:{shard_dir_name}")
+
+    sp = shard.server_port if server_port is None else server_port
+    msp = shard.master_server_port if master_server_port is None else master_server_port
+    ap = shard.authentication_port if authentication_port is None else authentication_port
+
+    if (sp, msp, ap) == (shard.server_port, shard.master_server_port, shard.authentication_port):
+        return shard  # 无变化
+
+    _validate_shard_ports(db, shard, sp, msp, ap)
+    db.execute(
+        "UPDATE shards SET server_port=?, master_server_port=?, authentication_port=? WHERE id=?",
+        (sp, msp, ap, shard.id),
+    )
+    rerender(db, settings, inst)
+    log.info("✎ 更新 Shard 端口 cluster=%s shard=%s server_port=%s master_server_port=%s "
+             "authentication_port=%s(需重启该 Shard 生效)",
+             inst.cluster_dir_name, shard_dir_name, sp, msp, ap)
+    updated = get_shard(db, inst.id, shard_dir_name)
+    assert updated is not None
     return updated
 
 

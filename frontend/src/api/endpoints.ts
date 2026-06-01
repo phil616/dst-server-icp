@@ -27,6 +27,10 @@ export const getRawConfig = (id: number) =>
   http.get(`/api/instances/${id}/config/raw`).then((r) => r.data);
 export const sendCommand = (id: number, shard: string, command: string) =>
   http.post(`/api/instances/${id}/shards/${shard}/command`, { command }).then((r) => r.data);
+export const updateShardPorts = (
+  id: number, shard: string,
+  ports: { server_port?: number; master_server_port?: number; authentication_port?: number },
+) => http.patch<InstanceView>(`/api/instances/${id}/shards/${shard}/ports`, ports).then((r) => r.data);
 export const rollback = (id: number, shard: string, count: number) =>
   http.post(`/api/instances/${id}/shards/${shard}/rollback?count=${count}`).then((r) => r.data);
 

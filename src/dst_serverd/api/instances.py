@@ -81,6 +81,12 @@ class AccessBody(BaseModel):
     note: str = ""
 
 
+class ShardPortsUpdate(BaseModel):
+    server_port: int | None = None
+    master_server_port: int | None = None
+    authentication_port: int | None = None
+
+
 # ---------- 组装实例视图(配置 + 实时进程状态) ----------
 def _instance_view(request: Request, inst) -> dict:
     database = deps.db(request)
@@ -304,6 +310,20 @@ def get_raw_config(instance_id: int, request: Request) -> dict:
     """读取该实例当前**落盘**的 ini/lua/列表(解析结果),供核对排错。"""
     inst = deps.require_instance(request, instance_id)
     return read_cluster_config(deps.settings(request), inst.cluster_dir_name)
+
+
+@router.patch("/instances/{instance_id}/shards/{shard}/ports")
+def update_shard_ports(
+    instance_id: int, shard: str, body: ShardPortsUpdate, request: Request,
+) -> dict:
+    """自定义某个 Shard(Master / Caves)的端口,写回其 server.ini(重启该 Shard 生效)。"""
+    inst = deps.require_instance(request, instance_id)
+    try:
+        svc.update_shard_ports(deps.db(request), deps.settings(request), inst, shard,
+                               **body.model_dump(exclude_unset=True))
+    except svc.InstanceError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    return _instance_view(request, deps.require_instance(request, instance_id))
 
 
 # ---------- 访问控制(adminlist / whitelist / blocklist) ----------

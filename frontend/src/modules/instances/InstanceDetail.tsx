@@ -11,6 +11,7 @@ import { StateTag } from "../../components/StateTag";
 import { AccessControl } from "../access/AccessControl";
 import { BackupsPanel } from "../backups/BackupsPanel";
 import { ConfigForm } from "../config/ConfigForm";
+import { ShardPortsForm } from "../config/ShardPortsForm";
 import { ModManager } from "../mods/ModManager";
 import { Console } from "./Console";
 
@@ -61,7 +62,12 @@ export function InstanceDetail() {
 
   const contents: Record<string, React.ReactNode> = {
     overview,
-    config: <ConfigForm instance={instance} />,
+    config: (
+      <Space direction="vertical" size="middle" style={{ width: "100%" }}>
+        <ConfigForm instance={instance} />
+        <ShardPortsForm instanceId={instanceId} shards={shards} />
+      </Space>
+    ),
     access: <AccessControl instance={instance} access={access} />,
     mods: <ModManager instanceId={instanceId} mods={mods} />,
     backups: <BackupsPanel instance={instance} />,

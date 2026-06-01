@@ -145,6 +145,17 @@ export const useSendCommand = () =>
       api.sendCommand(id, shard, command),
   });
 
+export const useUpdateShardPorts = () => {
+  const inv = useInvalidate();
+  return useMutation({
+    mutationFn: ({ id, shard, ports }: {
+      id: number; shard: string;
+      ports: { server_port?: number; master_server_port?: number; authentication_port?: number };
+    }) => api.updateShardPorts(id, shard, ports),
+    onSuccess: (_d, v) => inv(v.id),
+  });
+};
+
 export const useInstall = () => {
   const qc = useQueryClient();
   return useMutation({
