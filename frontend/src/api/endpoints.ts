@@ -4,6 +4,12 @@ import type {
   InstanceView, Job, Mod, ProxyCfg, SaveInfo, ShardRuntime, WorkshopSearchResult,
 } from "./types";
 
+// ---- 鉴权 ----
+export const authRequired = () =>
+  http.get<{ required: boolean }>("/api/auth/required").then((r) => r.data);
+export const verifyApiKey = () =>
+  http.get<{ ok: boolean }>("/api/auth/verify").then((r) => r.data);
+
 // ---- 实例 ----
 export const listInstances = () =>
   http.get<InstanceView[]>("/api/instances").then((r) => r.data);

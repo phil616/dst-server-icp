@@ -27,6 +27,10 @@ class Settings(BaseModel):
     db: Path = Path("data/dstd.sqlite3")
     secret_key: str = "change-me"
 
+    # ---- 接口鉴权(见 DESIGN.md 2.8) ----
+    # 为空/缺省 = 不保护:任意请求放行。非空 = 所有 /api 请求必须带 `APIKey` 头且精确匹配。
+    api_key: str = ""
+
     # ---- 在线模式默认 cluster_token ----
     # 实例开启 online 但未单独配置 token 时,回退使用此 token 激活在线模式
     # (避免退回离线/LAN-only 而被引擎强制 server_port ∈ [10998,11018])。

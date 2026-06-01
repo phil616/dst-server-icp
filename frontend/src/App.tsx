@@ -1,5 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 import { AppLayout } from "./components/AppLayout";
+import { AuthGate } from "./components/AuthGate";
 import { About } from "./modules/about/About";
 import { Dashboard } from "./modules/dashboard/Dashboard";
 import { InstallCenter } from "./modules/install/InstallCenter";
@@ -9,15 +10,17 @@ import { ProxySettings } from "./modules/proxy/ProxySettings";
 
 export default function App() {
   return (
-    <AppLayout>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/instances" element={<InstanceList />} />
-        <Route path="/instances/:id" element={<InstanceDetail />} />
-        <Route path="/install" element={<InstallCenter />} />
-        <Route path="/proxy" element={<ProxySettings />} />
-        <Route path="/about" element={<About />} />
-      </Routes>
-    </AppLayout>
+    <AuthGate>
+      <AppLayout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/instances" element={<InstanceList />} />
+          <Route path="/instances/:id" element={<InstanceDetail />} />
+          <Route path="/install" element={<InstallCenter />} />
+          <Route path="/proxy" element={<ProxySettings />} />
+          <Route path="/about" element={<About />} />
+        </Routes>
+      </AppLayout>
+    </AuthGate>
   );
 }

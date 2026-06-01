@@ -15,8 +15,8 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .activity import setup_activity_log
@@ -75,8 +75,31 @@ async def lifespan(app: FastAPI):
         log.info("backend stopping; shards left running for re-attach")
 
 
+# 即使配置了 api_key,这些 /api 端点也始终放行:前端要靠它们探测是否需要鉴权。
+_PUBLIC_API_PATHS = frozenset({"/api/health", "/api/auth/required"})
+
+
+def _register_auth_guard(app: FastAPI) -> None:
+    """APIKey 鉴权中间件。
+
+    架构约定:对所有 /api 请求都读取 `APIKey` 头。当 settings.api_key 为空时不保护
+    (放行任意值,包括缺省/空);非空时该头必须精确匹配,否则 401。前端据 401 重新索要 APIKey。
+    WebSocket(日志流)浏览器无法附带自定义头,故不在此拦截。
+    """
+    @app.middleware("http")
+    async def api_key_guard(request: Request, call_next):
+        path = request.url.path
+        if path.startswith("/api/") and path not in _PUBLIC_API_PATHS:
+            expected = (request.app.state.settings.api_key or "").strip()
+            provided = request.headers.get("APIKey", "")
+            if expected and provided != expected:
+                return JSONResponse({"detail": "APIKey 无效或缺失,请重新输入"}, status_code=401)
+        return await call_next(request)
+
+
 def create_app() -> FastAPI:
     app = FastAPI(title="DST Serverd", version="0.1.0", lifespan=lifespan)
+    _register_auth_guard(app)
     app.include_router(core_router)
     app.include_router(instances_router)
     app.include_router(admin_router)
