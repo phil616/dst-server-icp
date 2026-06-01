@@ -204,6 +204,19 @@ def send_command(instance_id: int, shard: str, body: CommandBody, request: Reque
 
 
 # ---------- MOD ----------
+@router.get("/mods/search")
+def search_mods(request: Request, q: str = "") -> dict:
+    """搜索 Workshop MOD(输入 ID 或名称),返回已确认存在的结果供前端点击添加。"""
+    q = (q or "").strip()
+    if not q:
+        return {"results": []}
+    try:
+        results = modupdate.search_workshop(deps.db(request), q)
+    except Exception as exc:  # noqa: BLE001 网络/接口异常
+        raise HTTPException(502, f"搜索失败(网络或 Steam):{exc}") from exc
+    return {"results": results}
+
+
 @router.post("/instances/{instance_id}/mods")
 def add_mod(instance_id: int, body: ModCreate, request: Request) -> dict:
     inst = deps.require_instance(request, instance_id)

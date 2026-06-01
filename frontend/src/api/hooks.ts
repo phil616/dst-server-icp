@@ -62,6 +62,9 @@ export const useDeleteInstance = () => {
   return useMutation({ mutationFn: (id: number) => api.deleteInstance(id), onSuccess: () => inv() });
 };
 
+export const useSearchMods = () =>
+  useMutation({ mutationFn: (q: string) => api.searchMods(q) });
+
 export const useAddMod = () => {
   const inv = useInvalidate();
   return useMutation({

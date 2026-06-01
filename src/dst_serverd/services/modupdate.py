@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 import urllib.request
 from urllib.parse import urlencode
@@ -21,10 +22,23 @@ from ..proxy import load_proxy
 log = logging.getLogger("dst_serverd.modupdate")
 
 _API = "https://api.steampowered.com/ISteamRemoteStorage/GetPublishedFileDetails/v1/"
+_BROWSE = "https://steamcommunity.com/workshop/browse/"
+_APPID = "322330"  # DST 游戏本体 AppID,Workshop 内容挂在其名下
+# 浏览页里每个物品的详情链接 sharedfiles/filedetails/?id=<数字>
+_RE_ITEM_ID = re.compile(r"sharedfiles/filedetails/\?id=(\d+)")
+
+
+def _opener(db: Database) -> urllib.request.OpenerDirector:
+    """按需带上代理(中国大陆访问 Steam 常需代理),与下载流程共用 proxy 配置。"""
+    proxy = load_proxy(db) if db is not None else None
+    if proxy and proxy.active:
+        return urllib.request.build_opener(
+            urllib.request.ProxyHandler({"http": proxy.url, "https": proxy.url}))
+    return urllib.request.build_opener()
 
 
 def fetch_workshop_details(db: Database, ids: list[str], timeout: float = 15.0) -> dict[str, dict]:
-    """批量查 Workshop 详情;返回 {id: {time_updated, title, file_size}}。失败抛异常。"""
+    """批量查 Workshop 详情;返回 {id: {time_updated, title, file_size, preview_url}}。失败抛异常。"""
     ids = [i for i in dict.fromkeys(ids) if i.isdigit()]
     if not ids:
         return {}
@@ -33,14 +47,8 @@ def fetch_workshop_details(db: Database, ids: list[str], timeout: float = 15.0) 
         body[f"publishedfileids[{i}]"] = wid
     data = urlencode(body).encode()
 
-    proxy = load_proxy(db) if db is not None else None
-    if proxy and proxy.active:
-        opener = urllib.request.build_opener(
-            urllib.request.ProxyHandler({"http": proxy.url, "https": proxy.url}))
-    else:
-        opener = urllib.request.build_opener()
     req = urllib.request.Request(_API, data=data, headers={"User-Agent": "dst-serverd"})
-    with opener.open(req, timeout=timeout) as resp:  # noqa: S310 固定可信 URL
+    with _opener(db).open(req, timeout=timeout) as resp:  # noqa: S310 固定可信 URL
         payload = json.load(resp)
 
     out: dict[str, dict] = {}
@@ -52,8 +60,53 @@ def fetch_workshop_details(db: Database, ids: list[str], timeout: float = 15.0) 
             "time_updated": int(item.get("time_updated", 0) or 0),
             "title": item.get("title", "") or "",
             "file_size": int(item.get("file_size", 0) or 0),
+            "preview_url": item.get("preview_url", "") or "",
         }
     return out
+
+
+def search_workshop(
+    db: Database, query: str, *, count: int = 30, timeout: float = 15.0,
+) -> list[dict]:
+    """搜索 DST Workshop MOD,返回已确认存在的结果列表(供前端"搜索→点击添加")。
+
+    - 纯数字 → 当作 Workshop ID,直接查详情确认其是否存在(免 key,最可靠)。
+    - 文字   → 抓 Steam 创意工坊浏览页(免 key)按相关度取前若干个 id,再批量查详情拿到
+      干净的标题/更新时间/预览图。
+
+    返回 [{workshop_id, title, time_updated, file_size, preview_url}],找不到则空列表。
+    """
+    query = (query or "").strip()
+    if not query:
+        return []
+
+    # ① 纯数字:直接按 ID 查详情确认存在
+    if query.isdigit():
+        det = fetch_workshop_details(db, [query], timeout=timeout)
+        d = det.get(query)
+        return [{"workshop_id": query, **d}] if d else []
+
+    # ② 文字:抓浏览页拿候选 id(按相关度排序)
+    params = urlencode({
+        "appid": _APPID,
+        "searchtext": query,
+        "browsesort": "textsearch",
+        "section": "readytouseitems",
+        "numperpage": 30,
+    })
+    req = urllib.request.Request(
+        f"{_BROWSE}?{params}",
+        headers={"User-Agent": "Mozilla/5.0 (compatible; dst-serverd)"})
+    with _opener(db).open(req, timeout=timeout) as resp:  # noqa: S310 固定可信 URL
+        html = resp.read().decode("utf-8", "replace")
+
+    ids: list[str] = list(dict.fromkeys(_RE_ITEM_ID.findall(html)))[:count]
+    if not ids:
+        return []
+
+    det = fetch_workshop_details(db, ids, timeout=timeout)
+    # 保持浏览页的相关度顺序,只保留确认存在的
+    return [{"workshop_id": wid, **det[wid]} for wid in ids if wid in det]
 
 
 def check_updates(db: Database, instance_id: int) -> list[dict]:

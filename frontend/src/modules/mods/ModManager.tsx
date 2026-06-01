@@ -1,14 +1,16 @@
 import { CloudSyncOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, ToolOutlined } from "@ant-design/icons";
 import {
-  Alert, Button, Descriptions, Form, Input, Popconfirm, Space, Switch, Table, Tag, Tooltip, message,
+  Alert, Button, Descriptions, Popconfirm, Space, Switch, Table, Tag, Tooltip, message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
+import { useState } from "react";
 import {
-  useAddMod, useCheckModUpdates, useRemoveMod, useRepairLibrary, useTriggerModsUpdate,
+  useCheckModUpdates, useRemoveMod, useRepairLibrary, useTriggerModsUpdate,
   useTriggerOneModUpdate, useUpdateMod, waitForJob,
 } from "../../api/hooks";
 import type { Mod, ModUpdateStatus } from "../../api/types";
+import { ModSearchModal } from "./ModSearchModal";
 
 const UPDATE_TAG: Record<ModUpdateStatus, { color: string; text: string }> = {
   latest: { color: "success", text: "最新" },
@@ -20,8 +22,7 @@ const UPDATE_TAG: Record<ModUpdateStatus, { color: string; text: string }> = {
 
 /** MOD 管理:增删 / 启停 / 看配置 / 检查更新 / 一键更新 / 确认是否真正加载到游戏。 */
 export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod[] }) {
-  const [form] = Form.useForm();
-  const add = useAddMod();
+  const [searchOpen, setSearchOpen] = useState(false);
   const remove = useRemoveMod();
   const update = useUpdateMod();
   const check = useCheckModUpdates();
@@ -30,15 +31,7 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
   const repair = useRepairLibrary();
 
   const hasUpdates = mods.some((m) => m.update_status === "outdated");
-
-  const onAdd = async () => {
-    const v = await form.validateFields();
-    try {
-      await add.mutateAsync({ id: instanceId, workshop_id: v.workshop_id.trim(), name: v.name?.trim() });
-      message.success(`MOD ${v.workshop_id} 已添加`);
-      form.resetFields();
-    } catch (e) { message.error((e as Error).message); }
-  };
+  const existingIds = new Set(mods.map((m) => m.workshop_id));
 
   const doCheck = async () => {
     try { await check.mutateAsync(instanceId); message.success("已检查更新"); }
@@ -127,13 +120,7 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
       <Alert type="info" banner
         message="“已加载到游戏”来自服务器日志的 Loading mod 行(需服务器运行,确认真正载入而非仅下载完成);“更新状态”经 Steam Workshop API 比对更新时间。更新前会自动预检并修复 Steam 库(解决 “library folder not found” 导致的下载失败),成功/失败均有提示。" />
       <Space wrap>
-        <Form form={form} layout="inline">
-          <Form.Item name="workshop_id" rules={[{ required: true, message: "请输入 Workshop ID" }]}>
-            <Input placeholder="Workshop ID,如 378160973" style={{ width: 220 }} />
-          </Form.Item>
-          <Form.Item name="name"><Input placeholder="备注名(可选)" style={{ width: 150 }} /></Form.Item>
-          <Form.Item><Button type="primary" icon={<PlusOutlined />} loading={add.isPending} onClick={onAdd}>添加</Button></Form.Item>
-        </Form>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setSearchOpen(true)}>搜索添加 MOD</Button>
         <Button icon={<ReloadOutlined />} loading={check.isPending} onClick={doCheck}>检查更新</Button>
         <Button type="primary" ghost danger={hasUpdates} icon={<CloudSyncOutlined />}
           loading={triggerUpdate.isPending} onClick={doUpdate}>
@@ -157,6 +144,8 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
           ),
         }}
       />
+      <ModSearchModal instanceId={instanceId} existingIds={existingIds}
+        open={searchOpen} onClose={() => setSearchOpen(false)} />
     </Space>
   );
 }

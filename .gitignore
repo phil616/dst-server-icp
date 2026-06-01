@@ -63,3 +63,5 @@ Desktop.ini
 *.tmp
 *.bak
 *.orig
+
+dst/

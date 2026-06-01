@@ -1,7 +1,7 @@
 import { http } from "./client";
 import type {
   AccessEntry, AccessKind, Backup, BackupPolicy, CreateInstancePayload, Instance,
-  InstanceView, Job, Mod, ProxyCfg, SaveInfo, ShardRuntime,
+  InstanceView, Job, Mod, ProxyCfg, SaveInfo, ShardRuntime, WorkshopSearchResult,
 } from "./types";
 
 // ---- 实例 ----
@@ -47,6 +47,9 @@ export const listShards = () =>
   http.get<ShardRuntime[]>("/api/shards").then((r) => r.data);
 
 // ---- MOD ----
+export const searchMods = (q: string) =>
+  http.get<{ results: WorkshopSearchResult[] }>(`/api/mods/search?q=${encodeURIComponent(q)}`)
+    .then((r) => r.data.results);
 export const addMod = (id: number, body: Partial<Mod> & { workshop_id: string }) =>
   http.post<Mod>(`/api/instances/${id}/mods`, body).then((r) => r.data);
 export const updateMod = (id: number, workshopId: string, body: { enabled?: boolean; config?: Record<string, unknown> }) =>

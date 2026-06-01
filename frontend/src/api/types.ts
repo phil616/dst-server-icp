@@ -133,6 +133,14 @@ export interface InstanceView {
   access: AccessEntry[];
 }
 
+export interface WorkshopSearchResult {
+  workshop_id: string;
+  title: string;
+  time_updated: number;
+  file_size: number;
+  preview_url: string;
+}
+
 export interface Job {
   id: number;
   action: string;

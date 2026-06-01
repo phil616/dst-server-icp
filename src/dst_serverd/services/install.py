@@ -18,6 +18,7 @@ import shutil
 import signal
 import subprocess
 import threading
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -222,8 +223,40 @@ def download_workshop_item(
     return _run(settings, f"mod:{wid}", argv, env=env, timeout=timeout)
 
 
+def unpack_legacy_bins(folder: Path) -> bool:
+    """旧版 Workshop 物品经 SteamCMD 下来是单个 `<contentid>_legacy.bin`(实为 ZIP 包),
+    游戏只认目录里摊开的 modinfo.lua/modmain.lua,不会自己解 .bin —— 这会导致这类 MOD
+    "下载成功却加载不了"。本函数把目录里的 *_legacy.bin 就地解包,解成功后删掉 .bin。
+
+    旧包条目用 Windows 反斜杠路径(如 `fonts\\normal.zip`),统一转 `/` 重建子目录,
+    并防目录穿越。返回是否做过解包。
+    """
+    did = False
+    root = folder.resolve()
+    for binf in sorted(folder.glob("*_legacy.bin")):
+        if not zipfile.is_zipfile(binf):
+            continue
+        with zipfile.ZipFile(binf) as zf:
+            for info in zf.infolist():
+                rel = info.filename.replace("\\", "/").lstrip("/")
+                if not rel or rel.endswith("/"):
+                    continue
+                out = (folder / rel).resolve()
+                if root not in out.parents and out != root:
+                    continue  # 防 ZIP 目录穿越
+                out.parent.mkdir(parents=True, exist_ok=True)
+                with zf.open(info) as s, open(out, "wb") as d:
+                    shutil.copyfileobj(s, d)
+        binf.unlink()
+        did = True
+    return did
+
+
 def sync_mod_to_server(settings: Settings, wid: str) -> bool:
-    """把下载好的 Workshop 内容拷进 server/mods/workshop-<id>/(V1 路径,服务器据此加载)。"""
+    """把下载好的 Workshop 内容拷进 server/mods/workshop-<id>/(V1 路径,服务器据此加载)。
+
+    旧版 MOD 下来是未解包的 *_legacy.bin,拷过去后就地解包成 modinfo.lua 等,否则加载不了。
+    """
     src = _content_dir(settings, wid)
     if not src.is_dir() or not any(src.iterdir()):
         return False
@@ -231,7 +264,8 @@ def sync_mod_to_server(settings: Settings, wid: str) -> bool:
     if dst.exists():
         shutil.rmtree(dst, ignore_errors=True)
     shutil.copytree(src, dst)
-    return (dst / "modinfo.lua").exists() or any(dst.iterdir())
+    unpack_legacy_bins(dst)
+    return (dst / "modinfo.lua").exists()
 
 
 def download_one_mod(settings: Settings, proxy: ProxyConfig, wid: str) -> bool:
