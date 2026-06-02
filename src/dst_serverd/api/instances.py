@@ -284,7 +284,9 @@ def update_one_mod(instance_id: int, workshop_id: str, request: Request) -> dict
 @router.post("/instances/{instance_id}/backups")
 def create_backup(instance_id: int, body: BackupCreate, request: Request) -> dict:
     inst = deps.require_instance(request, instance_id)
-    return backup_svc.backup_instance(deps.db(request), deps.settings(request), inst, body.note)
+    # 传 sup:实例在跑时,备份前先 c_save 并等落盘,保证归档含最新进度
+    return backup_svc.backup_instance(
+        deps.db(request), deps.settings(request), inst, body.note, sup=deps.sup(request))
 
 
 @router.get("/instances/{instance_id}/backups")
@@ -382,7 +384,8 @@ def restore_backup(backup_id: int, request: Request, restart: bool = False, pre_
         raise HTTPException(404, "备份对应的实例已不存在")
     svc.stop_instance(db, sup, inst)
     if pre_backup:
-        backup_svc.backup_instance(db, settings, inst, note="还原前自动备份", trigger="pre-restore")
+        backup_svc.backup_instance(db, settings, inst, note="还原前自动备份",
+                                   trigger="pre-restore", sup=sup)
     result = backup_svc.restore_backup(db, settings, backup_id)
     if restart:
         svc.start_instance(db, settings, sup, svc.get_instance(db, inst.id))  # type: ignore[arg-type]

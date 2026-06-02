@@ -13,19 +13,26 @@ import asyncio
 import logging
 import time
 
+from typing import TYPE_CHECKING
+
 from ..config import Settings
 from ..db import Database
 from . import backups as backup_svc
 from . import instances as inst_svc
 
+if TYPE_CHECKING:
+    from ..supervisor import Supervisor
+
 log = logging.getLogger("dst_serverd.scheduler")
 
 
 class BackupScheduler:
-    def __init__(self, db: Database, settings: Settings, tick: float = 60.0) -> None:
+    def __init__(self, db: Database, settings: Settings, tick: float = 60.0,
+                 sup: Supervisor | None = None) -> None:
         self.db = db
         self.settings = settings
         self.tick = tick
+        self.sup = sup  # 自动备份的是运行中实例 → 需要它做备份前写同步(c_save)
         self._last: dict[int, float] = {}  # instance_id -> 上次自动备份(单调时刻)
         self._task: asyncio.Task[None] | None = None
 
@@ -54,7 +61,8 @@ class BackupScheduler:
                 self._last[inst.id] = now
                 continue
             try:
-                backup_svc.backup_instance(self.db, self.settings, inst, note="自动", trigger="auto")
+                backup_svc.backup_instance(self.db, self.settings, inst, note="自动",
+                                           trigger="auto", sup=self.sup)
                 self._last[inst.id] = now
             except Exception:  # noqa: BLE001
                 log.exception("自动备份失败 cluster=%s", inst.cluster_dir_name)

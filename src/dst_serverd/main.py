@@ -56,7 +56,7 @@ async def lifespan(app: FastAPI):
     app.state.db = db
     app.state.supervisor = sup
     app.state.jobs = JobRunner()
-    scheduler = BackupScheduler(db, settings)
+    scheduler = BackupScheduler(db, settings, sup=sup)
     app.state.scheduler = scheduler
 
     log.info("=== DST Serverd 启动 ===  base=%s db=%s", settings.base, settings.db)
