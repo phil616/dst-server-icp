@@ -7,6 +7,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useBackup, useDeleteInstance, useInstance, useInstanceAction } from "../../api/hooks";
 import type { Shard } from "../../api/types";
+import { gameModeLabel } from "../../constants";
 import { StateTag } from "../../components/StateTag";
 import { AccessControl } from "../access/AccessControl";
 import { BackupsPanel } from "../backups/BackupsPanel";
@@ -66,7 +67,7 @@ export function InstanceDetail() {
       <Descriptions bordered size="small" column={2}>
         <Descriptions.Item label="名称">{instance.name}</Descriptions.Item>
         <Descriptions.Item label="Cluster 目录">{instance.cluster_dir_name}</Descriptions.Item>
-        <Descriptions.Item label="模式">{instance.game_mode}</Descriptions.Item>
+        <Descriptions.Item label="模式">{gameModeLabel(instance.game_mode)}</Descriptions.Item>
         <Descriptions.Item label="网络">{instance.online ? "在线" : "离线"}</Descriptions.Item>
         <Descriptions.Item label="人数上限">{instance.max_players}</Descriptions.Item>
         <Descriptions.Item label="PVP">{instance.pvp ? "是" : "否"}</Descriptions.Item>

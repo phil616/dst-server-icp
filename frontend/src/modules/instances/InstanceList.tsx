@@ -5,6 +5,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useDeleteInstance, useInstanceAction, useInstances } from "../../api/hooks";
 import type { InstanceView } from "../../api/types";
+import { gameModeLabel } from "../../constants";
 import { StateTag } from "../../components/StateTag";
 import { CreateInstanceModal } from "./CreateInstanceModal";
 import { ImportInstanceModal } from "./ImportInstanceModal";
@@ -24,7 +25,7 @@ export function InstanceList() {
   const columns: ColumnsType<InstanceView> = [
     { title: "名称", render: (_, v) => <Link to={`/instances/${v.instance.id}`}>{v.instance.name}</Link> },
     { title: "Cluster 目录", render: (_, v) => <Tag>{v.instance.cluster_dir_name}</Tag> },
-    { title: "模式", render: (_, v) => v.instance.game_mode },
+    { title: "模式", render: (_, v) => gameModeLabel(v.instance.game_mode) },
     { title: "网络", render: (_, v) => (v.instance.online ? "在线" : "离线") },
     { title: "状态", render: (_, v) => <StateTag state={v.instance.status} /> },
     {

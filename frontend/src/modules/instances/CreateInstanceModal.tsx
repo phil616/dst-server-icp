@@ -1,6 +1,7 @@
 import { Form, Input, InputNumber, Modal, Select, Switch, message } from "antd";
 import { useCreateInstance } from "../../api/hooks";
 import type { CreateInstancePayload } from "../../api/types";
+import { CLUSTER_INTENTIONS, GAME_MODES } from "../../constants";
 
 export function CreateInstanceModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form] = Form.useForm();
@@ -30,14 +31,10 @@ export function CreateInstanceModal({ open, onClose }: { open: boolean; onClose:
           <Input placeholder="My DST Server" />
         </Form.Item>
         <Form.Item name="game_mode" label="游戏模式">
-          <Select options={[
-            { value: "survival", label: "生存 survival" },
-            { value: "endless", label: "无尽 endless" },
-            { value: "wilderness", label: "荒野 wilderness" },
-          ]} />
+          <Select options={GAME_MODES} />
         </Form.Item>
         <Form.Item name="cluster_intention" label="风格">
-          <Select options={["cooperative", "competitive", "social", "madness"].map((v) => ({ value: v, label: v }))} />
+          <Select options={CLUSTER_INTENTIONS} />
         </Form.Item>
         <Form.Item name="max_players" label="人数上限"><InputNumber min={1} max={64} /></Form.Item>
         <Form.Item name="caves" label="包含洞穴(双 Shard)" valuePropName="checked"><Switch /></Form.Item>

@@ -26,7 +26,9 @@ from ..supervisor import Supervisor
 
 log = logging.getLogger("dst_serverd.instances")
 
-GAME_MODES = {"survival", "endless", "wilderness"}
+# DST 五种玩法风格(对应主机界面 play style)。relaxed/lightsout 为有效值;
+# wilderness/endless 在新版被引擎按 survival 兜底处理但仍接受(见 gamemodes.lua GameModeError)。
+GAME_MODES = {"relaxed", "survival", "endless", "wilderness", "lightsout"}
 INTENTIONS = {"cooperative", "competitive", "social", "madness"}
 ACCESS_KINDS = {"admin", "whitelist", "blocklist"}
 KLEI_ID_RE = re.compile(r"^(KU|OU)_[A-Za-z0-9_-]{4,}$")

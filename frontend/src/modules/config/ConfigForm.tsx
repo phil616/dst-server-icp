@@ -2,6 +2,7 @@ import { Alert, Button, Col, Form, Input, InputNumber, Row, Select, Space, Switc
 import { useEffect } from "react";
 import { useUpdateInstance } from "../../api/hooks";
 import type { Instance } from "../../api/types";
+import { CLUSTER_INTENTIONS, GAME_MODES } from "../../constants";
 
 /** 配置模块:房间/元信息/玩法/网络字段编辑(写回 cluster.ini,多数需重启生效)。 */
 export function ConfigForm({ instance }: { instance: Instance }) {
@@ -25,9 +26,9 @@ export function ConfigForm({ instance }: { instance: Instance }) {
         <Col span={12}><Form.Item name="cluster_description" label="房间描述"><Input /></Form.Item></Col>
         <Col span={12}><Form.Item name="cluster_password" label="房间密码(空=无密码)"><Input.Password /></Form.Item></Col>
         <Col span={6}><Form.Item name="game_mode" label="游戏模式">
-          <Select options={["survival", "endless", "wilderness"].map((v) => ({ value: v, label: v }))} /></Form.Item></Col>
+          <Select options={GAME_MODES} /></Form.Item></Col>
         <Col span={6}><Form.Item name="cluster_intention" label="风格">
-          <Select options={["cooperative", "competitive", "social", "madness"].map((v) => ({ value: v, label: v }))} /></Form.Item></Col>
+          <Select options={CLUSTER_INTENTIONS} /></Form.Item></Col>
         <Col span={6}><Form.Item name="max_players" label="人数上限"><InputNumber min={1} max={64} style={{ width: "100%" }} /></Form.Item></Col>
         <Col span={6}><Form.Item name="whitelist_slots" label="白名单保留位"><InputNumber min={0} max={64} style={{ width: "100%" }} /></Form.Item></Col>
         <Col span={6}><Form.Item name="max_snapshots" label="快照保留数"><InputNumber min={1} max={50} style={{ width: "100%" }} /></Form.Item></Col>
