@@ -1,4 +1,6 @@
-import { CloudSyncOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, ToolOutlined } from "@ant-design/icons";
+import {
+  CloudDownloadOutlined, CloudSyncOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, ToolOutlined,
+} from "@ant-design/icons";
 import {
   Alert, Button, Descriptions, Popconfirm, Space, Switch, Table, Tag, Tooltip, message,
 } from "antd";
@@ -37,6 +39,7 @@ function shortVersion(v: string, max = 14): string {
 /** MOD 管理:增删 / 启停 / 看配置 / 检查更新 / 一键更新 / 确认是否真正加载到游戏。 */
 export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod[] }) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [updatingWid, setUpdatingWid] = useState<string | null>(null);  // 单 MOD 更新中的 workshop_id
   const remove = useRemoveMod();
   const update = useUpdateMod();
   const check = useCheckModUpdates();
@@ -62,13 +65,15 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
   };
 
   const doUpdateOne = async (wid: string) => {
+    setUpdatingWid(wid);
     try {
       const j = await triggerOne.mutateAsync({ id: instanceId, workshopId: wid });
-      message.info(`MOD ${wid} 更新作业 #${j.id} 进行中…`);
+      message.info(`MOD ${wid} 单独下载/更新作业 #${j.id} 进行中…(仅下载此 MOD,不影响其他)`);
       const done = await waitForJob(j.id);
-      if (done.status === "success") message.success(`MOD ${wid} 更新成功`);
-      else message.error(`MOD ${wid} 更新失败:${done.error || "见系统日志"}`, 8);
+      if (done.status === "success") message.success(`MOD ${wid} 下载/更新成功`);
+      else message.error(`MOD ${wid} 下载/更新失败:${done.error || "见系统日志"}`, 8);
     } catch (e) { message.error((e as Error).message); }
+    finally { setUpdatingWid(null); }
   };
 
   const doRepair = async () => {
@@ -115,17 +120,28 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
     { title: "启用", render: (_, m) => <Switch checked={m.enabled} size="small"
         onChange={async (v) => { try { await update.mutateAsync({ id: instanceId, workshopId: m.workshop_id, enabled: v }); } catch (e) { message.error((e as Error).message); } }} /> },
     {
-      title: "操作", width: 150, render: (_, m) => (
-        <Space>
-          {m.update_status === "outdated" &&
-            <Button size="small" type="primary" icon={<CloudSyncOutlined />}
-              onClick={() => doUpdateOne(m.workshop_id)}>更新</Button>}
-          <Popconfirm title="移除该 MOD?"
-            onConfirm={async () => { await remove.mutateAsync({ id: instanceId, workshopId: m.workshop_id }); message.success("已移除"); }}>
-            <Button size="small" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
-        </Space>
-      ),
+      title: "操作", width: 180, render: (_, m) => {
+        const outdated = m.update_status === "outdated";
+        const busy = updatingWid === m.workshop_id;
+        return (
+          <Space>
+            <Tooltip title="单独下载/更新此 MOD(用 SteamCMD 仅拉取该 MOD,不影响其他;完成后看“已加载到游戏”确认是否载入)">
+              <Button size="small"
+                type={outdated ? "primary" : "default"} danger={outdated}
+                icon={<CloudDownloadOutlined />}
+                loading={busy}
+                disabled={updatingWid !== null && !busy}
+                onClick={() => doUpdateOne(m.workshop_id)}>
+                {outdated ? "更新" : "下载/更新"}
+              </Button>
+            </Tooltip>
+            <Popconfirm title="移除该 MOD?"
+              onConfirm={async () => { await remove.mutateAsync({ id: instanceId, workshopId: m.workshop_id }); message.success("已移除"); }}>
+              <Button size="small" danger icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Space>
+        );
+      },
     },
   ];
 
