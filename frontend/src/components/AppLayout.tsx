@@ -58,7 +58,10 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const [activityOpen, setActivityOpen] = useState(false);
   const { data: proxy } = useProxy();
-  const { data: jobs = [] } = useJobs();
+  // 徽标用:有排队/执行中的作业才快轮询(2s),空闲时慢轮询(20s),减少无谓请求。
+  // 触发更新等变更会 invalidate ["jobs"] 立即刷新,所以空闲慢轮询不影响响应。
+  const { data: jobs = [] } = useJobs((q) =>
+    (q.state.data ?? []).some((j) => j.status === "queued" || j.status === "running") ? 2000 : 20000);
   const taskQueue = useTaskQueue();
   const activeJobs = jobs.filter((j) => j.status === "queued" || j.status === "running").length;
   const { mode, colors, toggle } = useThemeMode();

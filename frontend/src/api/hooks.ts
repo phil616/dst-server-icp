@@ -1,6 +1,6 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import * as api from "./endpoints";
-import type { AccessKind, BackupPolicy, CreateInstancePayload, Instance } from "./types";
+import type { AccessKind, BackupPolicy, CreateInstancePayload, Instance, Job } from "./types";
 
 // ---- 查询(带轮询,实时反映运行状态) ----
 export const useInstances = () =>
@@ -17,8 +17,9 @@ export const useInstance = (id: number) =>
 export const useShards = () =>
   useQuery({ queryKey: ["shards"], queryFn: api.listShards, refetchInterval: 3000 });
 
-export const useJobs = () =>
-  useQuery({ queryKey: ["jobs"], queryFn: api.listJobs, refetchInterval: 1500 });
+// refetchInterval 可传函数做自适应轮询(空闲慢、有活跃作业快),避免全局每 1.5s 常驻请求。
+export const useJobs = (refetchInterval: UseQueryOptions<Job[]>["refetchInterval"] = 1500) =>
+  useQuery({ queryKey: ["jobs"], queryFn: api.listJobs, refetchInterval });
 
 export const useCancelJob = () => {
   const qc = useQueryClient();

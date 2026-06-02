@@ -128,6 +128,9 @@ class ShardProcess:
         pidfile.write_pidfile(self.pidfile_path, self.pid, self.spec.cmdline_marker())
         self.ready = False
         self.players.clear()
+        self.player_ids.clear()
+        self._last_ku = ""
+        self._pending_join = ""
         self.loaded_mods.clear()
         self.state = ShardState.STARTING
 
