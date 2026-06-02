@@ -8,12 +8,14 @@ import { InstallCenter } from "./modules/install/InstallCenter";
 import { InstanceDetail } from "./modules/instances/InstanceDetail";
 import { InstanceList } from "./modules/instances/InstanceList";
 import { ProxySettings } from "./modules/proxy/ProxySettings";
+import { TaskQueueProvider } from "./task-queue-context";
 
 export default function App() {
   return (
     <AuthGate>
-      <AppLayout>
-        <Routes>
+      <TaskQueueProvider>
+        <AppLayout>
+          <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/instances" element={<InstanceList />} />
           <Route path="/instances/:id" element={<InstanceDetail />} />
@@ -21,8 +23,9 @@ export default function App() {
           <Route path="/contacts" element={<ContactsPanel />} />
           <Route path="/proxy" element={<ProxySettings />} />
           <Route path="/about" element={<About />} />
-        </Routes>
-      </AppLayout>
+          </Routes>
+        </AppLayout>
+      </TaskQueueProvider>
     </AuthGate>
   );
 }

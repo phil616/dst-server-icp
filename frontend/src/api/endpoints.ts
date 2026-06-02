@@ -99,6 +99,8 @@ export const installRepairLibrary = () =>
   http.post<Job>("/api/install/repair-library").then((r) => r.data);
 export const listJobs = () => http.get<Job[]>("/api/jobs").then((r) => r.data);
 export const getJob = (jobId: number) => http.get<Job>(`/api/jobs/${jobId}`).then((r) => r.data);
+export const cancelJob = (jobId: number) =>
+  http.delete(`/api/jobs/${jobId}`).then((r) => r.data);
 export const getActivity = (lines = 400) =>
   http.get<{ lines: string[] }>(`/api/activity?lines=${lines}`).then((r) => r.data);
 

@@ -20,6 +20,14 @@ export const useShards = () =>
 export const useJobs = () =>
   useQuery({ queryKey: ["jobs"], queryFn: api.listJobs, refetchInterval: 1500 });
 
+export const useCancelJob = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: number) => api.cancelJob(jobId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+};
+
 export const useHealth = () =>
   useQuery({ queryKey: ["health"], queryFn: api.getHealth, refetchInterval: 60_000 });
 

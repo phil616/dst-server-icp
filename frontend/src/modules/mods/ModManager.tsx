@@ -12,6 +12,7 @@ import {
   useTriggerOneModUpdate, useUpdateMod, waitForJob,
 } from "../../api/hooks";
 import type { Mod, ModUpdateStatus } from "../../api/types";
+import { useTaskQueue } from "../../task-queue-context";
 import { ModSearchModal } from "./ModSearchModal";
 
 const UPDATE_TAG: Record<ModUpdateStatus, { color: string; text: string }> = {
@@ -46,6 +47,7 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
   const triggerUpdate = useTriggerModsUpdate();
   const triggerOne = useTriggerOneModUpdate();
   const repair = useRepairLibrary();
+  const taskQueue = useTaskQueue();
 
   const hasUpdates = mods.some((m) => m.update_status === "outdated");
   const existingIds = new Set(mods.map((m) => m.workshop_id));
@@ -57,6 +59,7 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
   const doUpdate = async () => {
     try {
       const j = await triggerUpdate.mutateAsync(instanceId);
+      taskQueue.open();  // 触发更新即弹出任务队列,可见排队/执行状态
       message.info(`更新作业 #${j.id} 进行中…(缺 Steam 库会自动修复;实时输出见“系统日志”)`);
       const done = await waitForJob(j.id);
       if (done.status === "success") message.success("MOD 更新成功");
@@ -68,6 +71,7 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
     setUpdatingWid(wid);
     try {
       const j = await triggerOne.mutateAsync({ id: instanceId, workshopId: wid });
+      taskQueue.open();  // 触发更新即弹出任务队列,可见排队/执行状态
       message.info(`MOD ${wid} 单独下载/更新作业 #${j.id} 进行中…(仅下载此 MOD,不影响其他)`);
       const done = await waitForJob(j.id);
       if (done.status === "success") message.success(`MOD ${wid} 下载/更新成功`);

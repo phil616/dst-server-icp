@@ -155,7 +155,7 @@ export interface WorkshopSearchResult {
 export interface Job {
   id: number;
   action: string;
-  status: "queued" | "running" | "success" | "failed";
+  status: "queued" | "running" | "success" | "failed" | "canceled";
   returncode: number | null;
   error: string;
   created_at: number;

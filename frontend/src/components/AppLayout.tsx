@@ -1,14 +1,15 @@
 import {
   AppstoreOutlined, CloudDownloadOutlined, DashboardOutlined,
   InfoCircleOutlined, ProfileOutlined, ApiOutlined, FireOutlined,
-  BulbOutlined, BulbFilled, KeyOutlined, TeamOutlined,
+  BulbOutlined, BulbFilled, KeyOutlined, TeamOutlined, UnorderedListOutlined,
 } from "@ant-design/icons";
 import { Badge, Breadcrumb, Button, Layout, Menu, Tooltip } from "antd";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { openApiKeyDialog } from "../api/cookies";
-import { useProxy } from "../api/hooks";
+import { useJobs, useProxy } from "../api/hooks";
 import { useThemeMode } from "../theme-context";
+import { useTaskQueue } from "../task-queue-context";
 import { ActivityDrawer } from "./ActivityDrawer";
 
 const { Header, Sider, Content, Footer } = Layout;
@@ -57,6 +58,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const loc = useLocation();
   const [activityOpen, setActivityOpen] = useState(false);
   const { data: proxy } = useProxy();
+  const { data: jobs = [] } = useJobs();
+  const taskQueue = useTaskQueue();
+  const activeJobs = jobs.filter((j) => j.status === "queued" || j.status === "running").length;
   const { mode, colors, toggle } = useThemeMode();
   // 选中项:取与当前路径最匹配的菜单 key
   const selected =
@@ -96,6 +100,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <Tooltip title="修改 APIKey">
             <Button type="text" aria-label="修改 APIKey" icon={<KeyOutlined />}
               onClick={() => openApiKeyDialog()} style={{ color: colors.ink }} />
+          </Tooltip>
+          <Tooltip title="任务队列(安装/更新/MOD 下载等后台作业)">
+            <Badge count={activeJobs} size="small" offset={[-2, 2]}>
+              <Button icon={<UnorderedListOutlined />} onClick={taskQueue.open}>任务队列</Button>
+            </Badge>
           </Tooltip>
           <Button type="primary" ghost onClick={() => setActivityOpen(true)}>系统日志</Button>
         </Header>

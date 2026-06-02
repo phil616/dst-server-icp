@@ -19,7 +19,7 @@ log = logging.getLogger("dst_serverd.jobs")
 class Job:
     id: int
     action: str
-    status: str = "queued"  # queued | running | success | failed
+    status: str = "queued"  # queued | running | success | failed | canceled
     returncode: int | None = None
     error: str = ""
     created_at: float = field(default_factory=time.time)
@@ -51,8 +51,13 @@ class JobRunner:
         if self._run_lock.locked():
             log.info("作业 #%s（%s）排队中,等待前一个作业完成…", job.id, job.action)
         with self._run_lock:
-            job.status = "running"
-            job.started_at = time.time()
+            # 排队→运行 的状态切换与 cancel() 互斥:期间被取消则直接跳过执行
+            with self._lock:
+                if job.status == "canceled":
+                    log.info("⏭ 作业 #%s 排队期间已取消,跳过:%s", job.id, job.action)
+                    return
+                job.status = "running"
+                job.started_at = time.time()
             log.info("▶ 作业 #%s 开始:%s", job.id, job.action)
             try:
                 res = fn()
@@ -82,3 +87,17 @@ class JobRunner:
         with self._lock:
             j = self._jobs.get(job_id)
             return j.public() if j else None
+
+    def cancel(self, job_id: int) -> bool:
+        """取消尚未开始执行的【排队中】作业。running/已完成的不可取消(返回 False)。
+
+        被取消的作业其线程仍阻塞在 run_lock 上,待轮到它时在 _run 里发现 canceled 即跳过执行。
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None or job.status != "queued":
+                return False
+            job.status = "canceled"
+            job.finished_at = time.time()
+        log.info("✋ 作业 #%s 已取消(排队中未执行):%s", job_id, job.action)
+        return True
