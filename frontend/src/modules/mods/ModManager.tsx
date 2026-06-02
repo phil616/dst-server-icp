@@ -20,6 +20,20 @@ const UPDATE_TAG: Record<ModUpdateStatus, { color: string; text: string }> = {
   manual: { color: "blue", text: "手动 MOD" },
 };
 
+/** 版本号格式化:纯数字版本(如 1.2.3)加 "v" 前缀;含空格/字母的字符串版本(部分 MOD 把
+ *  整串塞进 modinfo 的 version 字段,如 "under the weather pt.1 v1.5.4.1")原样显示,不再被截断。 */
+function fmtVersion(v: string): string {
+  const s = (v || "").trim();
+  if (!s) return "—";
+  return /^\d/.test(s) ? `v${s}` : s;
+}
+
+/** 过长的版本号在标签里截断显示,完整内容交给 Tooltip 悬停展示。 */
+function shortVersion(v: string, max = 14): string {
+  const s = fmtVersion(v);
+  return s.length > max ? `${s.slice(0, max).trimEnd()} …` : s;
+}
+
 /** MOD 管理:增删 / 启停 / 看配置 / 检查更新 / 一键更新 / 确认是否真正加载到游戏。 */
 export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod[] }) {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -81,9 +95,9 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
         const shards = Object.entries(m.loaded);
         if (!shards.length) return <Tag color="default">未加载</Tag>;
         return shards.map(([shard, info]) => (
-          <Tooltip key={shard} title={`${info.name} v${info.version}`}>
+          <Tooltip key={shard} title={`${info.name} ${fmtVersion(info.version)}`}>
             <Tag color={info.status === "loaded" ? "success" : "error"}>
-              {shard}: {info.status === "loaded" ? `✓ v${info.version}` : "✗ 失败"}
+              {shard}: {info.status === "loaded" ? `✓ ${shortVersion(info.version)}` : "✗ 失败"}
             </Tag>
           </Tooltip>
         ));

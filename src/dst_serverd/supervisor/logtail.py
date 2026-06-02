@@ -22,8 +22,10 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("player_leave", re.compile(r"\[Leave Announcement\]\s*(?P<name>.+)")),
     ("player_id", re.compile(r"(?P<ku>KU_[A-Za-z0-9_-]{8,})")),
     ("mod_enabling", re.compile(r"modoverrides\.lua enabling (?P<ref>\S+)")),
-    # 真实日志:`Loading mod: workshop-XXXX (Name) Version:1.2.3` —— 确认已加载到游戏
-    ("mod_loaded", re.compile(r"Loading mod:\s*(?P<ref>\S+)\s*\((?P<name>.+?)\)\s*Version:(?P<version>\S+)")),
+    # 真实日志:`Loading mod: workshop-XXXX (Name) Version:1.2.3` —— 确认已加载到游戏。
+    # 版本号可能含空格(部分 MOD 把整串写进 modinfo 的 version 字段,如 "under the weather pt.1 v1.5.4.1"),
+    # 故取冒号后到行尾的全部内容(process.py 会 .strip()),不能用 \S+ 在首个空格处截断。
+    ("mod_loaded", re.compile(r"Loading mod:\s*(?P<ref>\S+)\s*\((?P<name>.+?)\)\s*Version:(?P<version>.+)")),
     ("mod_failed", re.compile(r"(?:Disabling (?P<ref>workshop-\S+)|(?P<ref2>workshop-\S+)[^\n]*failed to load)")),
     ("crash", re.compile(r"\[Error\]|Assert failure|SCRIPT ERROR|Stack traceback")),
     ("shutdown", re.compile(r"Shutting down")),
