@@ -26,6 +26,25 @@ export const useHealth = () =>
 export const useProxy = () =>
   useQuery({ queryKey: ["proxy"], queryFn: api.getProxy });
 
+// ---- 本地通讯录 ----
+export const useContacts = () =>
+  useQuery({ queryKey: ["contacts"], queryFn: api.listContacts, refetchInterval: 10_000 });
+export const useUpdateContact = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ kleiId, name, note }: { kleiId: string; name?: string; note?: string }) =>
+      api.patchContact(kleiId, { name, note }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+};
+export const useDeleteContact = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (kleiId: string) => api.deleteContact(kleiId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["contacts"] }),
+  });
+};
+
 export const useBackups = (id: number) =>
   useQuery({ queryKey: ["backups", id], queryFn: () => api.listBackups(id), enabled: id > 0 });
 

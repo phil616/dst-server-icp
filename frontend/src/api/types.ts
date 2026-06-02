@@ -27,8 +27,19 @@ export interface ShardRuntime {
   ready: boolean;
   desired_running: boolean;
   players: string[];
+  player_ids: Record<string, string>; // 昵称 -> KU_(日志就近配对到的,可能缺失)
   loaded_mods: Record<string, LoadedMod>;
   resource: ProcResource | null;
+}
+
+/** 本地通讯录条目:玩家加入即自动记忆的 昵称↔Klei ID。 */
+export interface Contact {
+  klei_id: string;
+  name: string;
+  note: string;
+  first_seen: number;
+  last_seen: number;
+  seen_count: number;
 }
 
 export interface Shard {

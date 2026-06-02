@@ -1,7 +1,7 @@
 import {
   AppstoreOutlined, CloudDownloadOutlined, DashboardOutlined,
   InfoCircleOutlined, ProfileOutlined, ApiOutlined, FireOutlined,
-  BulbOutlined, BulbFilled, KeyOutlined,
+  BulbOutlined, BulbFilled, KeyOutlined, TeamOutlined,
 } from "@ant-design/icons";
 import { Badge, Breadcrumb, Button, Layout, Menu, Tooltip } from "antd";
 import { useState } from "react";
@@ -17,6 +17,7 @@ const ITEMS = [
   { key: "/", icon: <DashboardOutlined />, label: <Link to="/">运行总览</Link> },
   { key: "/instances", icon: <AppstoreOutlined />, label: <Link to="/instances">实例管理</Link> },
   { key: "/install", icon: <CloudDownloadOutlined />, label: <Link to="/install">安装与更新</Link> },
+  { key: "/contacts", icon: <TeamOutlined />, label: <Link to="/contacts">通讯录</Link> },
   { key: "/proxy", icon: <ApiOutlined />, label: <Link to="/proxy">代理设置</Link> },
   { key: "/about", icon: <InfoCircleOutlined />, label: <Link to="/about">关于</Link> },
 ];
@@ -26,6 +27,7 @@ const CRUMB_LABELS: Record<string, string> = {
   "/": "运行总览",
   "/instances": "实例管理",
   "/install": "安装与更新",
+  "/contacts": "通讯录",
   "/proxy": "代理设置",
   "/about": "关于",
 };

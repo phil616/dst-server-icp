@@ -100,6 +100,17 @@ CREATE TABLE IF NOT EXISTS proxy_config (
     updated_at  REAL NOT NULL DEFAULT 0
 );
 
+-- 本地通讯录:只要有玩家加入过游戏,系统就自动记住其 昵称↔Klei ID(见 supervisor/manager.py)。
+-- 纯本地备忘,方便对好友 ID 做提示/复制;与访问控制(access_entries)无关,全局共享不分实例。
+CREATE TABLE IF NOT EXISTS contacts (
+    klei_id     TEXT PRIMARY KEY,                  -- KU_xxxx(在线)/ OU_xxxx(离线)
+    name        TEXT NOT NULL DEFAULT '',          -- 最近一次见到的昵称
+    note        TEXT NOT NULL DEFAULT '',          -- 用户备注(好友标签)
+    first_seen  REAL NOT NULL DEFAULT 0,           -- 首次见到时刻
+    last_seen   REAL NOT NULL DEFAULT 0,           -- 最近一次加入时刻
+    seen_count  INTEGER NOT NULL DEFAULT 0         -- 加入次数
+);
+
 -- 全局键值设置(备份策略等)
 CREATE TABLE IF NOT EXISTS kv (
     key   TEXT PRIMARY KEY,

@@ -51,7 +51,7 @@ async def lifespan(app: FastAPI):
     settings.logs_dir.mkdir(parents=True, exist_ok=True)
     setup_activity_log(settings.logs_dir / "activity.log")
     db = Database(settings.db)
-    sup = Supervisor(settings)
+    sup = Supervisor(settings, db=db)  # 传 db:玩家加入即自动记入本地通讯录
     app.state.settings = settings
     app.state.db = db
     app.state.supervisor = sup

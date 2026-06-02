@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from ..activity import read_tail
 from ..proxy import ProxyConfig, load_proxy, save_proxy
+from ..services import contacts as contacts_svc
 from ..services import install
 from ..services import modupdate
 from . import deps
@@ -136,3 +137,26 @@ def put_backup_policy(body: BackupPolicy, request: Request) -> dict:
     db.set_kv("backup_interval_min", str(max(1, body.interval_min)))
     db.set_kv("backup_retention", str(max(1, body.retention)))
     return get_backup_policy(request)
+
+
+# ---------- 本地通讯录(全局):玩家加入即自动记忆 昵称↔Klei ID ----------
+class ContactPatch(BaseModel):
+    name: str | None = None
+    note: str | None = None
+
+
+@router.get("/contacts")
+def list_contacts(request: Request) -> list[dict]:
+    return contacts_svc.list_contacts(deps.db(request))
+
+
+@router.patch("/contacts/{klei_id}")
+def patch_contact(klei_id: str, body: ContactPatch, request: Request) -> list[dict]:
+    contacts_svc.update_contact(deps.db(request), klei_id, name=body.name, note=body.note)
+    return contacts_svc.list_contacts(deps.db(request))
+
+
+@router.delete("/contacts/{klei_id}")
+def delete_contact(klei_id: str, request: Request) -> dict:
+    contacts_svc.delete_contact(deps.db(request), klei_id)
+    return {"ok": True}

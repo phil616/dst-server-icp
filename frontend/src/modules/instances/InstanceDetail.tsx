@@ -1,6 +1,6 @@
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import {
-  Button, Card, Descriptions, Popconfirm, Space, Spin, Table, Tag, message,
+  Button, Card, Descriptions, Popconfirm, Space, Spin, Table, Tag, Tooltip, message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { useState } from "react";
@@ -41,7 +41,24 @@ export function InstanceDetail() {
     { title: "CPU", render: (_, r) => (r.runtime?.resource ? `${r.runtime.resource.cpu_percent}%` : "—") },
     { title: "内存", render: (_, r) => (r.runtime?.resource ? `${r.runtime.resource.rss_mb} MB` : "—") },
     { title: "预设", dataIndex: "worldgen_preset" },
-    { title: "在线玩家", render: (_, r) => (r.runtime?.players?.length ? r.runtime.players.join(", ") : "—") },
+    {
+      title: "在线玩家", render: (_, r) => {
+        const players = r.runtime?.players ?? [];
+        if (!players.length) return "—";
+        const ids = r.runtime?.player_ids ?? {};
+        return (
+          <Space size={[4, 4]} wrap>
+            {players.map((p) => (
+              ids[p]
+                ? <Tooltip key={p} title={`Klei ID：${ids[p]}（已自动记入通讯录）`}>
+                    <Tag color="green">{p}</Tag>
+                  </Tooltip>
+                : <Tag key={p}>{p}</Tag>
+            ))}
+          </Space>
+        );
+      },
+    },
   ];
 
   const overview = (

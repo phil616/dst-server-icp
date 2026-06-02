@@ -40,6 +40,11 @@ _PROXY_ENV_KEYS = (
 )
 
 
+# 昵称↔KU_ 就近配对的时间窗(秒):连接日志里 KU_ 与"加入公告"通常相隔不到 1s;
+# 设窗可排除服务端启动期 token 等陈旧 KU_ 与稍后某次加入被错误配对。
+_PAIR_WINDOW = 15.0
+
+
 class ShardState(str, enum.Enum):
     STOPPED = "stopped"
     STARTING = "starting"
@@ -62,6 +67,11 @@ class ShardProcess:
         self.pid: int | None = None
         self.ready: bool = False
         self.players: set[str] = set()
+        self.player_ids: dict[str, str] = {}  # name -> KU_(从日志按就近配对,可能缺失)
+        self._last_ku: str = ""               # 最近见到、尚未配给某次加入的 KU_
+        self._last_ku_at: float = 0.0         # 见到该 KU_ 的单调时刻(配对设时间窗,排除启动期 token 误配)
+        self._pending_join: str = ""          # 已加入但还没配到 KU_ 的昵称(等待回填)
+        self._pending_join_at: float = 0.0
         # ref -> {"name", "version", "status": loaded|failed}(从日志确认是否真正加载到游戏)
         self.loaded_mods: dict[str, dict] = {}
 
@@ -258,14 +268,35 @@ class ShardProcess:
             self.ready = True
             if self.is_alive():
                 self.state = ShardState.READY
+        elif ev.kind == "player_id":
+            # 连接/鉴权阶段的 KU_ 行通常先于"加入公告"出现:暂存,留给随后的加入配对。
+            # 若加入公告反而先到(_pending_join 仍在时间窗内),就地回填并把昵称回写进事件供入册。
+            ku = (ev.groups.get("ku") or "").strip()
+            if ku:
+                now = time.monotonic()
+                if self._pending_join and now - self._pending_join_at <= _PAIR_WINDOW:
+                    self.player_ids[self._pending_join] = ku
+                    ev.groups["name"] = self._pending_join
+                    self._pending_join = ""
+                else:
+                    self._last_ku, self._last_ku_at = ku, now
         elif ev.kind == "player_join":
-            name = ev.groups.get("name")
+            name = (ev.groups.get("name") or "").strip()
             if name:
-                self.players.add(name.strip())
+                self.players.add(name)
+                now = time.monotonic()
+                # 仅当 KU_ 是刚刚(时间窗内)见到的才配对,避免启动期 token 等陈旧 KU_ 误配
+                if self._last_ku and now - self._last_ku_at <= _PAIR_WINDOW:
+                    self.player_ids[name] = self._last_ku
+                    ev.groups["klei_id"] = self._last_ku
+                    self._last_ku = ""
+                else:              # 还没见到 KU_,挂起等 player_id 回填
+                    self._pending_join, self._pending_join_at = name, now
         elif ev.kind == "player_leave":
-            name = ev.groups.get("name")
+            name = (ev.groups.get("name") or "").strip()
             if name:
-                self.players.discard(name.strip())
+                self.players.discard(name)
+                self.player_ids.pop(name, None)
         elif ev.kind == "mod_loaded":
             ref = ev.groups.get("ref")
             if ref:
@@ -307,6 +338,7 @@ class ShardProcess:
             "ready": self.ready,
             "desired_running": self.spec.desired_running,
             "players": sorted(self.players),
+            "player_ids": dict(self.player_ids),  # name -> KU_(已配对到的)
             "loaded_mods": self.loaded_mods,
             "resource": asdict(smp) if smp else None,
         }

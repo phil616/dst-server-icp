@@ -1,6 +1,6 @@
 import { http } from "./client";
 import type {
-  AccessEntry, AccessKind, Backup, BackupPolicy, CreateInstancePayload, Instance,
+  AccessEntry, AccessKind, Backup, BackupPolicy, Contact, CreateInstancePayload, Instance,
   InstanceView, Job, Mod, ProxyCfg, SaveInfo, ShardRuntime, WorkshopSearchResult,
 } from "./types";
 
@@ -105,6 +105,14 @@ export const getActivity = (lines = 400) =>
 // ---- 健康 / 版本 ----
 export const getHealth = () =>
   http.get<{ status: string; version: string; python: string; platform: string }>("/api/health").then((r) => r.data);
+
+// ---- 本地通讯录(玩家加入即自动记忆 昵称↔Klei ID) ----
+export const listContacts = () =>
+  http.get<Contact[]>("/api/contacts").then((r) => r.data);
+export const patchContact = (kleiId: string, patch: { name?: string; note?: string }) =>
+  http.patch<Contact[]>(`/api/contacts/${encodeURIComponent(kleiId)}`, patch).then((r) => r.data);
+export const deleteContact = (kleiId: string) =>
+  http.delete(`/api/contacts/${encodeURIComponent(kleiId)}`).then((r) => r.data);
 
 // ---- 代理 ----
 export const getProxy = () => http.get<ProxyCfg>("/api/proxy").then((r) => r.data);

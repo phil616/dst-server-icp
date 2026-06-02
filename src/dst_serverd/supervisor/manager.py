@@ -17,6 +17,7 @@ from collections.abc import Iterable
 import psutil
 
 from ..config import Settings
+from ..db import Database
 from .process import ShardProcess, ShardState
 from .spec import ShardSpec, shard_key
 
@@ -29,9 +30,11 @@ def _argv_has(cmd: list[str], flag: str, value: str) -> bool:
 
 
 class Supervisor:
-    def __init__(self, settings: Settings, poll_interval: float = 2.0) -> None:
+    def __init__(self, settings: Settings, poll_interval: float = 2.0,
+                 db: Database | None = None) -> None:
         self.settings = settings
         self.poll_interval = poll_interval
+        self.db = db  # 有 db 时,玩家加入即自动记入本地通讯录(见 _log_events)
         self._shards: dict[str, ShardProcess] = {}
         self._lock = threading.RLock()
         self._restart_after: dict[str, float] = {}  # key -> 最早可重启的单调时刻
@@ -236,11 +239,27 @@ class Supervisor:
                  self._STATE_CN.get(old or "", old or "—"), self._STATE_CN.get(new, new),
                  f" pid={sp.pid}" if sp.pid else "")
 
+    def _record_contact(self, name: str, klei_id: str) -> None:
+        """玩家加入 → 自动记入本地通讯录(昵称↔Klei ID)。失败不影响监管。"""
+        if not (self.db and klei_id):
+            return
+        try:
+            from ..services import contacts
+            contacts.record_seen(self.db, klei_id, name)
+        except Exception:  # noqa: BLE001 通讯录是附属功能,绝不拖垮监管循环
+            log.debug("record contact failed", exc_info=True)
+
     def _log_events(self, sp: ShardProcess, events) -> None:
         key = sp.spec.key
         for ev in events:
             if ev.kind == "player_join":
                 log.info("👤 Shard %s 玩家加入:%s", key, ev.groups.get("name", "?"))
+                # process.py 已就近把 KU_ 配进 groups["klei_id"](若已知)
+                self._record_contact(ev.groups.get("name", ""), ev.groups.get("klei_id", ""))
+            elif ev.kind == "player_id":
+                # KU_ 行晚于加入公告时,process.py 会回填 groups["name"],在此入册
+                if ev.groups.get("name"):
+                    self._record_contact(ev.groups["name"], ev.groups.get("ku", ""))
             elif ev.kind == "player_leave":
                 log.info("👋 Shard %s 玩家离开:%s", key, ev.groups.get("name", "?"))
             elif ev.kind == "secondary_connected":
