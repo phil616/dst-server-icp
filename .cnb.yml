@@ -13,7 +13,7 @@ $:
       stages:
         - name: 安装 uv(CNB 本地化镜像)
           script: |
-            set -euo pipefail
+            set -eu
             curl -fL --retry 3 -o /tmp/uv.tar.gz \
               https://cnb.cool/dreamreflex/localize-uv/-/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz
             mkdir -p /tmp/uv && tar -xzf /tmp/uv.tar.gz -C /tmp/uv
@@ -22,7 +22,7 @@ $:
 
         - name: 构建发布包
           script: |
-            set -euo pipefail
+            set -eu
             # 前端依赖走 npmmirror 加速(CI 内)。
             npm config set registry https://registry.npmmirror.com
             # 下载并缓存 standalone Python(python-build-standalone),供 build-release.sh 内置打包。
