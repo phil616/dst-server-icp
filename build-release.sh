@@ -132,4 +132,10 @@ cat <<EOF
      sudo DST_RELEASE_BASE="file://$OUT_DIR" \\
           DST_RELEASE_ASSET="$PKG_NAME.tar.gz" \\
           bash install-dst.sh install
+
+   发布(CI 无法访问 github,故本地打包后手动上传):
+     1. 打 tag 并推送:git tag v0.2.0 && git push cnb v0.2.0
+     2. CNB 仓库 → Releases → 基于该 tag 新建 Release,勾选「设为最新(latest)」
+     3. 上传本包为附件,文件名保持 $PKG_NAME.tar.gz 不变(install-dst.sh 按此名拉取)
+     4. 验证:curl -IL https://cnb.cool/greenshadecapital/dst-server-icp/-/releases/latest/download/$PKG_NAME.tar.gz
 EOF
