@@ -8,7 +8,7 @@
 #   bash install-dst.sh update               # 升级管理器本体(保留游戏/存档/数据库)
 #   bash install-dst.sh uninstall            # 卸载管理器本体(保留游戏、steamcmd、uv、缓存)
 #
-# 可选参数 mirror(PyPI 镜像,默认清华源,绝不使用官方 PyPI):
+# 可选参数 mirror(PyPI 镜像,默认清华源,默认不使用官方 PyPI):
 #   bash install-dst.sh install mirror=https://pypi.tuna.tsinghua.edu.cn/simple
 #   bash install-dst.sh install --mirror https://mirrors.aliyun.com/pypi/simple
 #
