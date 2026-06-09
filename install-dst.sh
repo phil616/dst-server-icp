@@ -352,7 +352,11 @@ do_update() {
   write_service
   fix_ownership
   log "重新启动服务"
-  systemctl enable --now "$SERVICE_NAME"
+  # 用 restart 而非 enable --now:enable --now 末尾是 start,对"仍在运行"的服务是空操作,
+  # 一旦上面第 ~344 行的 stop 没真正停掉旧进程(|| true 吞错),升级后会继续跑旧代码
+  # (static 读盘看着是新的,后端逻辑仍是旧的)。restart 原子且无条件替换进程,确保加载新代码。
+  systemctl enable "$SERVICE_NAME"
+  systemctl restart "$SERVICE_NAME"
   echo
   log "✅ 升级完成"
 }
