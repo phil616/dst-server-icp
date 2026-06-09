@@ -16,6 +16,16 @@ uv run uvicorn dst_serverd.main:app --port 8000
 ```
 打开 `http://127.0.0.1:8000/` 即可。
 
+## 一键安装
+1. 安装
+```
+curl -fsSL https://cnb.cool/greenshadecapital/dst-server-icp/-/git/raw/main/install-dst.sh | sudo bash -s -- install
+```
+
+2. 升级
+```
+curl -fsSL https://cnb.cool/greenshadecapital/dst-server-icp/-/git/raw/main/install-dst.sh | sudo bash -s -- update
+```
 ## 功能一览
 
 - **实例 CRUD** — 自动渲染 ini/lua、分配 LAN 端口
