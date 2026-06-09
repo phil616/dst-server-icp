@@ -9,7 +9,7 @@ export function ProxySettings() {
   const [form] = Form.useForm();
 
   useEffect(() => {
-    if (proxy) form.setFieldsValue({ ...proxy, password: "" });
+    if (proxy) form.setFieldsValue(proxy);
   }, [proxy, form]);
 
   const submit = async () => {
@@ -42,7 +42,7 @@ export function ProxySettings() {
         </Space>
         <Space size="large" wrap>
           <Form.Item name="username" label="用户名(可选)"><Input style={{ width: 220 }} /></Form.Item>
-          <Form.Item name="password" label="密码(留空=不修改)"><Input.Password style={{ width: 220 }} /></Form.Item>
+          <Form.Item name="password" label="密码"><Input style={{ width: 220 }} /></Form.Item>
         </Space>
         <Form.Item name="no_proxy" label="直连白名单(no_proxy)"><Input placeholder="127.0.0.1,localhost" /></Form.Item>
         <Button type="primary" loading={save.isPending} onClick={submit}>保存</Button>

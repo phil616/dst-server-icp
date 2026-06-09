@@ -1,6 +1,6 @@
 [project]
 name = "dst-serverd"
-version = "0.2.0"
+version = "1.0.1"
 description = "Don't Starve Together 专用服务器管理后端 —— 单机、无 Docker,Python 直接托管 Shard 进程"
 readme = "README.md"
 requires-python = ">=3.12"

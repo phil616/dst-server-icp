@@ -37,7 +37,6 @@ class ServerUpdateBody(BaseModel):
 def get_proxy(request: Request) -> dict:
     cfg = load_proxy(deps.db(request))
     d = asdict(cfg)
-    d["password"] = "set" if cfg.password else ""  # 不外泄
     d["active"] = cfg.active
     return d
 
