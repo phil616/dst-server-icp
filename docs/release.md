@@ -27,6 +27,7 @@
    `https://cnb.cool/greenshadecapital/dst-server-icp/-/git/raw/main/install-dst.sh`
    (`/-/raw/main/` 和 `/-/blob/main/?raw=true` 返回的是 HTML 页面,不是裸文件。)
 7. **若将来真要写 `.cnb.yml`**:内联 `script:` 块由 **sh(dash)** 执行,不能用 bashism(`set -o pipefail`、`[[ ]]`、数组)。用 `set -eu` + `[ ]`,bash 专属逻辑放进独立 `.sh` 文件并显式 `bash xxx.sh`。
+8. **先改版本号,再打包**。`pyproject` 的 version 必须在 `build-release.sh` 之前更新。顺序反了 → 包内版本滞后 → 目标机 `uv sync` 按版本判重装时跳过后端 → 升级后仍跑旧代码(已踩过)。用 `build-release.sh --expect-version vX.Y.Z` 锁版本防呆。
 
 ---
 
@@ -40,15 +41,21 @@
 ### 步骤
 
 ```bash
-# 1. (可选)更新版本号
+# 1. 【必做,且必须在打包之前】更新版本号
 #    pyproject.toml 的 version = "X.Y.Z"
+#    顺序绝不能反:先改版本号 → 再打包。否则包内版本滞后,目标机 uv sync 按版本判重装时
+#    会跳过后端,升级后仍跑旧代码(本项目真实踩过这个坑)。
 
-# 2. 打包(首次或前端有改动加 --rebuild-frontend)
-bash build-release.sh                  # 复用已构建前端
-bash build-release.sh --rebuild-frontend   # 强制重建前端
+# 2. 打包(首次或前端有改动加 --rebuild-frontend);用 --expect-version 锁版本防呆
+bash build-release.sh --rebuild-frontend --expect-version vX.Y.Z
+#   --expect-version 会校验 pyproject 版本==vX.Y.Z,不一致直接拒绝打包。
+#   平时复用已构建前端可省略 --rebuild-frontend。
 
 # 产物:dist/dst-serverd-x86_64-linux.tar.gz
 #   含:源码 + uv.lock + 已构建前端(src/dst_serverd/static) + 内置 standalone Python(python/bin/python3.12)
+
+# 3. 打包后自检:确认包内版本号 == 你要发布的版本
+tar -xzOf dist/dst-serverd-x86_64-linux.tar.gz dst-serverd-x86_64-linux/pyproject.toml | grep -m1 version
 ```
 
 ### 步骤 3:本地全流程自测(强烈建议,发布前验证包能装)

@@ -10,6 +10,7 @@
 # 用法:
 #   bash build-release.sh                      # 自动取 standalone python(uv) + 复用已构建前端
 #   bash build-release.sh --rebuild-frontend   # 强制重新构建前端
+#   bash build-release.sh --expect-version v1.0.1  # 校验 pyproject 版本==此值,否则拒绝打包(防呆)
 #   bash build-release.sh --python /path/root  # 指定 standalone python 根目录(含 bin/python3.12)
 #   bash build-release.sh --pyver 3.12         # 指定 Python 版本(默认 3.12)
 #   bash build-release.sh --out /tmp/out       # 指定输出目录(默认 ./dist)
@@ -24,9 +25,11 @@ PYVER="3.12"
 PYTHON_ROOT=""        # 用户指定的 standalone python 根目录
 OUT_DIR="$ROOT/dist"
 REBUILD_FRONTEND=0
+EXPECT_VERSION=""     # 若指定(如 v1.0.1),必须与 pyproject 的 version 一致,否则拒绝打包
 while [ $# -gt 0 ]; do
   case "$1" in
     --rebuild-frontend) REBUILD_FRONTEND=1 ;;
+    --expect-version) shift; EXPECT_VERSION="${1:-}" ;;
     --python) shift; PYTHON_ROOT="${1:-}" ;;
     --pyver)  shift; PYVER="${1:-3.12}" ;;
     --out)    shift; OUT_DIR="${1:-$ROOT/dist}" ;;
@@ -50,6 +53,18 @@ case "$(uname -m)" in
 esac
 PKG_NAME="dst-serverd-${ARCH}-linux"
 STATIC="$ROOT/src/dst_serverd/static"
+
+# --------------------------- 版本防呆(最易踩坑)-----------------------------
+# 教训:曾「先打包、后改版本号」,导致发布包内 pyproject 版本滞后,目标机 uv sync
+# 按版本判重装时直接跳过后端,升级后仍跑旧代码。务必【先改 pyproject 版本,再打包】。
+PKG_VERSION="$(grep -m1 -E '^version *= *"' "$ROOT/pyproject.toml" | sed -E 's/.*"([^"]+)".*/\1/')"
+[ -n "$PKG_VERSION" ] || die "无法从 pyproject.toml 解析 version"
+if [ -n "$EXPECT_VERSION" ]; then
+  WANT="${EXPECT_VERSION#v}"   # 容忍传入 vX.Y.Z 或 X.Y.Z
+  [ "$PKG_VERSION" = "$WANT" ] \
+    || die "版本不一致:pyproject=$PKG_VERSION 但 --expect-version=$WANT。请先改 pyproject 版本号再打包!"
+fi
+log "📦 打包版本(取自 pyproject):$PKG_VERSION  —— 请确认与你要打的 tag(v$PKG_VERSION)一致"
 
 # ----------------------------- [1/4] 前端构建 -------------------------------
 if [ "$REBUILD_FRONTEND" = "1" ] || [ ! -f "$STATIC/index.html" ]; then
@@ -121,7 +136,7 @@ tar -czf "$TARBALL" -C "$STAGE" "$PKG_NAME"
 
 SIZE="$(du -h "$TARBALL" | cut -f1)"
 echo
-log "✅ 发布包已生成:$TARBALL ($SIZE)"
+log "✅ 发布包已生成:$TARBALL ($SIZE) —— 版本 $PKG_VERSION"
 cat <<EOF
    包内顶层目录:$PKG_NAME/
    内置解释器:  $PKG_NAME/python/bin/python3.12
@@ -134,7 +149,7 @@ cat <<EOF
           bash install-dst.sh install
 
    发布(CI 无法访问 github,故本地打包后手动上传):
-     1. 打 tag 并推送:git tag v0.2.0 && git push cnb v0.2.0
+     1. 打 tag 并推送:git tag v$PKG_VERSION && git push cnb v$PKG_VERSION
      2. CNB 仓库 → Releases → 基于该 tag 新建 Release,勾选「设为最新(latest)」
      3. 上传本包为附件,文件名保持 $PKG_NAME.tar.gz 不变(install-dst.sh 按此名拉取)
      4. 验证:curl -IL https://cnb.cool/greenshadecapital/dst-server-icp/-/releases/latest/download/$PKG_NAME.tar.gz
