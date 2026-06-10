@@ -107,12 +107,12 @@ def get_job(job_id: int, request: Request) -> dict:
 
 @router.delete("/jobs/{job_id}")
 def cancel_job(job_id: int, request: Request) -> dict:
-    """取消排队中(尚未执行)的作业。运行中或已结束的不可取消。"""
+    """中断作业:排队中的直接移除;执行中的强制终止子进程(SIGKILL)。已结束的不可操作。"""
     job = request.app.state.jobs.get(job_id)
     if job is None:
         raise HTTPException(404, f"作业 {job_id} 不存在")
     if not request.app.state.jobs.cancel(job_id):
-        raise HTTPException(409, f"作业 {job_id} 当前状态为「{job['status']}」,只能取消排队中的作业")
+        raise HTTPException(409, f"作业 {job_id} 当前状态为「{job['status']}」,已结束,无法中断")
     return {"canceled": job_id}
 
 

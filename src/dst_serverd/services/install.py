@@ -24,6 +24,7 @@ from pathlib import Path
 
 from ..activity import install_logger
 from ..config import Settings
+from ..jobs import current_cancel_token
 from ..proxy import ProxyConfig, download_env, wrap_argv
 from ..render import mod_setup_path
 
@@ -34,6 +35,9 @@ STEAMCMD_URL = "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.
 # 子进程默认超时(秒)
 STEAMCMD_TIMEOUT = 1800     # 装/更服务端(约 2GB)
 MOD_TIMEOUT = 600           # 单个 MOD 下载
+
+# 原子下载行为的最大尝试次数:超过即强制失败,避免断网时无限重试卡死队列
+MOD_MAX_ATTEMPTS = 2        # 单个 MOD 下载失败后的总尝试次数(含首次)
 
 
 @dataclass(slots=True)
@@ -79,8 +83,12 @@ def _run(
     proc = subprocess.Popen(  # noqa: S603 受控参数
         argv, cwd=str(cwd) if cwd else None, env=env,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
-        start_new_session=True,  # 独立进程组,便于超时 killpg
+        start_new_session=True,  # 独立进程组,便于超时 / 用户中断 killpg
     )
+    # 登记到作业的取消句柄:用户「强制中断」时由 JobRunner.cancel() 杀掉本进程组
+    token = current_cancel_token()
+    if token is not None:
+        token.bind(proc)
     timed_out = {"v": False}
     timer: threading.Timer | None = None
     if timeout:
@@ -110,7 +118,12 @@ def _run(
     finally:
         if timer:
             timer.cancel()
+        if token is not None:
+            token.unbind(proc)
 
+    if token is not None and token.cancelled():
+        _emit(f"<== [{action}] ✋ 已被用户强制中断")
+        return JobResult(action, 130, [*tail, "[用户中断]"], "已被用户强制中断")
     if timed_out["v"]:
         _emit(f"<== [{action}] ✗ 超时({timeout:.0f}s)被强制终止")
         return JobResult(action, 124, [*tail, "[超时被终止]"], f"超时({timeout:.0f}s)被终止")
@@ -269,16 +282,23 @@ def sync_mod_to_server(settings: Settings, wid: str) -> bool:
 
 
 def download_one_mod(settings: Settings, proxy: ProxyConfig, wid: str) -> bool:
-    """下载并安装单个 MOD(带一次重试)。返回是否成功落地。"""
+    """下载并安装单个 MOD(最多尝试 MOD_MAX_ATTEMPTS 次)。返回是否成功落地。
+
+    每轮开头检查取消句柄:用户「强制中断」后立刻早退,不再发起新的尝试。
+    """
     wid = str(wid)
-    for attempt in (1, 2):
+    token = current_cancel_token()
+    for attempt in range(1, MOD_MAX_ATTEMPTS + 1):
+        if token is not None and token.cancelled():
+            _emit(f"    ✋ MOD {wid} 下载被用户中断")
+            return False
         r = download_workshop_item(settings, proxy, wid)
         if r.ok and sync_mod_to_server(settings, wid):
             _emit(f"    ✓ MOD {wid} → mods/workshop-{wid}")
             return True
-        if attempt == 1:
-            _emit(f"    ↻ MOD {wid} 第 1 次失败,重试…")
-    _emit(f"    ✗ MOD {wid} 下载/安装失败")
+        if attempt < MOD_MAX_ATTEMPTS:
+            _emit(f"    ↻ MOD {wid} 第 {attempt}/{MOD_MAX_ATTEMPTS} 次失败,重试…")
+    _emit(f"    ✗ MOD {wid} 下载/安装失败(已达最大重试 {MOD_MAX_ATTEMPTS} 次)")
     return False
 
 
@@ -296,7 +316,15 @@ def download_mods(
         return JobResult("mods:update", 0, ["无 MOD"])
     _emit(f"==> [mods] 用 SteamCMD 下载 {len(ids)} 个 MOD(workshop_download_item {WORKSHOP_APPID})")
     settings.server_dir.joinpath("mods").mkdir(parents=True, exist_ok=True)
-    failed = [wid for wid in ids if not download_one_mod(settings, proxy, wid)]
+    token = current_cancel_token()
+    failed: list[str] = []
+    for wid in ids:
+        if token is not None and token.cancelled():
+            hint = "已被用户强制中断,停止后续 MOD 下载"
+            _emit(f"<== [mods] ✋ {hint}")
+            return JobResult("mods:update", 130, [hint], hint)
+        if not download_one_mod(settings, proxy, wid):
+            failed.append(wid)
     if failed:
         hint = f"以下 MOD 下载失败:{','.join(failed)}(检查网络/代理 force 模式)"
         _emit(f"<== [mods] ✗ {hint}")

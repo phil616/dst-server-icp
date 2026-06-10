@@ -29,9 +29,12 @@ export function TaskQueueDrawer({ open, onClose }: { open: boolean; onClose: () 
 
   const active = jobs.filter((j) => j.status === "queued" || j.status === "running").length;
 
-  const doCancel = async (id: number) => {
-    try { await cancel.mutateAsync(id); message.success(`已删除排队作业 #${id}`); }
-    catch (e) { message.error((e as Error).message); }
+  const doCancel = async (job: Job) => {
+    const running = job.status === "running";
+    try {
+      await cancel.mutateAsync(job.id);
+      message.success(running ? `已强制中断作业 #${job.id}` : `已删除排队作业 #${job.id}`);
+    } catch (e) { message.error((e as Error).message); }
   };
 
   const columns: ColumnsType<Job> = [
@@ -60,17 +63,29 @@ export function TaskQueueDrawer({ open, onClose }: { open: boolean; onClose: () 
     { title: "用时", width: 90, render: (_, j) => duration(j) },
     {
       title: "操作", width: 88,
-      render: (_, j) =>
-        j.status === "queued" ? (
-          <Popconfirm title="删除该排队作业?(尚未执行)" okText="删除" cancelText="取消"
-            onConfirm={() => doCancel(j.id)}>
-            <Tooltip title="删除排队中、尚未执行的作业">
-              <Button size="small" danger icon={<CloseCircleOutlined />}>删除</Button>
-            </Tooltip>
-          </Popconfirm>
-        ) : (
-          <span style={{ color: "#9aa0a6" }}>—</span>
-        ),
+      render: (_, j) => {
+        if (j.status === "queued") {
+          return (
+            <Popconfirm title="删除该排队作业?(尚未执行)" okText="删除" cancelText="取消"
+              onConfirm={() => doCancel(j)}>
+              <Tooltip title="删除排队中、尚未执行的作业">
+                <Button size="small" danger icon={<CloseCircleOutlined />}>删除</Button>
+              </Tooltip>
+            </Popconfirm>
+          );
+        }
+        if (j.status === "running") {
+          return (
+            <Popconfirm title="强制中断正在执行的任务?将立即杀掉下载进程" okText="强制中断" cancelText="取消"
+              onConfirm={() => doCancel(j)}>
+              <Tooltip title="强制终止正在执行的下载/更新(SIGKILL),立即脱困">
+                <Button size="small" danger icon={<CloseCircleOutlined />}>中断</Button>
+              </Tooltip>
+            </Popconfirm>
+          );
+        }
+        return <span style={{ color: "#9aa0a6" }}>—</span>;
+      },
     },
   ];
 
@@ -81,7 +96,7 @@ export function TaskQueueDrawer({ open, onClose }: { open: boolean; onClose: () 
       styles={{ body: { paddingTop: 8 } }}
     >
       <div style={{ color: "#6e6e73", fontSize: 12, marginBottom: 8 }}>
-        作业串行执行(同一时刻只跑一个)。排队中的作业可删除;执行中或已结束的不可删除。实时输出见「系统日志」。
+        作业串行执行(同一时刻只跑一个)。排队中的作业可删除;执行中的可强制中断(立即杀掉下载进程)。实时输出见「系统日志」。
       </div>
       <Table<Job>
         rowKey="id" size="small" columns={columns} dataSource={jobs} loading={isLoading}
