@@ -136,6 +136,45 @@ ensure_user() {
   fi
 }
 
+# 安装 SteamCMD 所需的 32 位运行库。
+# SteamCMD 是 32 位程序(steamcmd.sh 实际执行 linux32/steamcmd),在 64 位系统上若缺少
+# i386 版 glibc/gcc 运行库,会报 `linux32/steamcmd: cannot execute: required file not found`
+# (32 位动态链接器 /lib/ld-linux.so.2 不存在),导致「装/更 服务端本体」失败 rc=127。
+# best-effort:面板本体跑 64 位内置 Python、并不依赖它,故装失败不致命,仅告警并给出手动命令。
+# 仅 x86_64 需要(i686 主机本就是 32 位,steamcmd 原生运行)。
+ensure_steam_deps() {
+  [ "$PROJ_ARCH" = "x86_64" ] || return 0
+  log "安装 SteamCMD 32 位运行库(i386 glibc/gcc)"
+  if command -v apt-get >/dev/null 2>&1; then
+    dpkg --add-architecture i386 >/dev/null 2>&1 || true
+    apt-get update -y >/dev/null 2>&1 || warn "apt-get update 失败,仍尝试安装 32 位库"
+    if apt-get install -y lib32gcc-s1 libc6:i386 >/dev/null 2>&1 \
+       || apt-get install -y lib32gcc1 libc6:i386 >/dev/null 2>&1; then
+      log "32 位运行库已就绪(apt)"
+    else
+      warn "apt 安装失败,请手动:dpkg --add-architecture i386 && apt update && apt install -y lib32gcc-s1 libc6:i386"
+    fi
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf install -y glibc.i686 libstdc++.i686 >/dev/null 2>&1 \
+      && log "32 位运行库已就绪(dnf)" \
+      || warn "dnf 安装失败,请手动:dnf install -y glibc.i686 libstdc++.i686"
+  elif command -v yum >/dev/null 2>&1; then
+    yum install -y glibc.i686 libstdc++.i686 >/dev/null 2>&1 \
+      && log "32 位运行库已就绪(yum)" \
+      || warn "yum 安装失败,请手动:yum install -y glibc.i686 libstdc++.i686"
+  elif command -v zypper >/dev/null 2>&1; then
+    zypper install -y glibc-32bit libstdc++6-32bit >/dev/null 2>&1 \
+      && log "32 位运行库已就绪(zypper)" \
+      || warn "zypper 安装失败,请手动安装 glibc-32bit libstdc++6-32bit"
+  elif command -v pacman >/dev/null 2>&1; then
+    pacman -Sy --noconfirm lib32-glibc lib32-gcc-libs >/dev/null 2>&1 \
+      && log "32 位运行库已就绪(pacman)" \
+      || warn "pacman 安装失败,请先启用 multilib 仓库再手动:pacman -S lib32-glibc lib32-gcc-libs"
+  else
+    warn "未识别包管理器,无法自动安装 SteamCMD 32 位库。请手动安装 i386 版 glibc/gcc,否则装游戏本体会报 'cannot execute: required file not found'"
+  fi
+}
+
 # 从固定镜像安装 uv(幂等)。
 install_uv() {
   if [ -x "$UV_BIN" ]; then
@@ -315,6 +354,7 @@ do_install() {
   log "开始安装 dst-serverd(架构:$PROJ_ARCH)"
   mkdir -p "$UV_CACHE_DIR" "$DATA_DIR" "$DST_BASE"
   ensure_user
+  ensure_steam_deps   # SteamCMD 32 位运行库,缺则装游戏本体会 rc=127
   install_uv
   fetch_project
   resolve_python
@@ -343,6 +383,7 @@ do_update() {
     log "停止服务(仅停面板,不杀游戏进程)"
     systemctl stop "$SERVICE_NAME" || true
   fi
+  ensure_steam_deps   # 幂等;补装早期版本漏掉的 SteamCMD 32 位运行库
   install_uv          # 幂等,uv 已存在则跳过
   fetch_project       # 内部会 rm -rf 旧源码目录后重新下载展开
   resolve_python

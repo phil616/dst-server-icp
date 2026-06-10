@@ -67,6 +67,27 @@ def _emit(line: str) -> None:
     install_logger.info(line)
 
 
+# SteamCMD 是 32 位程序:64 位系统缺 i386 glibc 时 steamcmd.sh 执行 linux32/steamcmd 失败,
+# bash 报 `cannot execute: required file not found`(32 位动态链接器缺失)。给可操作提示。
+_MISSING_32BIT = "cannot execute: required file not found"
+_HINT_32BIT = (
+    "SteamCMD 是 32 位程序,系统缺少 32 位运行库(i386 glibc/gcc)。"
+    "Debian/Ubuntu:dpkg --add-architecture i386 && apt update && "
+    "apt install -y lib32gcc-s1 libc6:i386;"
+    "CentOS/RHEL:yum install -y glibc.i686 libstdc++.i686"
+)
+
+
+def _hint_for_failure(res: JobResult) -> JobResult:
+    """为常见失败补一条可操作提示(目前:SteamCMD 缺 32 位运行库),便于面板直接看懂。"""
+    if res.ok or res.error_hint:
+        return res
+    blob = "\n".join(res.tail[-30:])
+    if _MISSING_32BIT in blob and "steamcmd" in blob:
+        res.error_hint = _HINT_32BIT
+    return res
+
+
 def _conf_path(settings: Settings) -> Path:
     return settings.run_dir / "proxychains.conf"
 
@@ -128,7 +149,7 @@ def _run(
         _emit(f"<== [{action}] ✗ 超时({timeout:.0f}s)被强制终止")
         return JobResult(action, 124, [*tail, "[超时被终止]"], f"超时({timeout:.0f}s)被终止")
     _emit(f"<== [{action}] {'✓ 成功' if rc == 0 else f'✗ 失败 rc={rc}'}")
-    return JobResult(action, rc, tail)
+    return _hint_for_failure(JobResult(action, rc, tail))
 
 
 # ---------------- SteamCMD / 服务端 ----------------
