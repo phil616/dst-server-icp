@@ -20,6 +20,11 @@ _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ("world_gen", re.compile(r"\[Shard\] .*Received world")),
     ("player_join", re.compile(r"\[Join Announcement\]\s*(?P<name>.+)")),
     ("player_leave", re.compile(r"\[Leave Announcement\]\s*(?P<name>.+)")),
+    # 权威绑定:DST 鉴权通过时打印 `Client authenticated: (KU_xxxx) 昵称` —— 一行内同时给出
+    # KU 与昵称,闭合括号天然给 KU 划边界。用它入册通讯录最可靠;否则只能靠 player_id(通用 KU)
+    # 按时间窗就近配对,并发进服时会把某人的 KU 安到另一个昵称上(同一玩家被记成多个 KU 的根因)。
+    # 必须排在 player_id 之前:同一行也会命中通用 KU,先处理它好让 process.py 切到权威模式。
+    ("client_auth", re.compile(r"Client authenticated:\s*\((?P<ku>KU_[A-Za-z0-9_-]+)\)\s*(?P<name>.+)")),
     ("player_id", re.compile(r"(?P<ku>KU_[A-Za-z0-9_-]{8,})")),
     ("mod_enabling", re.compile(r"modoverrides\.lua enabling (?P<ref>\S+)")),
     # 真实日志:`Loading mod: workshop-XXXX (Name) Version:1.2.3` —— 确认已加载到游戏。

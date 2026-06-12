@@ -40,9 +40,10 @@ _PROXY_ENV_KEYS = (
 )
 
 
-# 昵称↔KU_ 就近配对的时间窗(秒):连接日志里 KU_ 与"加入公告"通常相隔不到 1s;
-# 设窗可排除服务端启动期 token 等陈旧 KU_ 与稍后某次加入被错误配对。
-_PAIR_WINDOW = 15.0
+# 昵称↔KU_ 就近配对的时间窗(秒)——仅 client_auth 权威行缺失时的兜底路径用到。
+# 连接日志里 KU_ 与"加入公告"通常相隔不到 1s,故窗口取紧(2s):窗口越大,并发进服时
+# 越容易把别人的 KU 配给某次加入(同一玩家被记成多个 KU 的根因),也越易误配启动期 token。
+_PAIR_WINDOW = 2.0
 
 
 class ShardState(str, enum.Enum):
@@ -67,8 +68,9 @@ class ShardProcess:
         self.pid: int | None = None
         self.ready: bool = False
         self.players: set[str] = set()
-        self.player_ids: dict[str, str] = {}  # name -> KU_(从日志按就近配对,可能缺失)
-        self._last_ku: str = ""               # 最近见到、尚未配给某次加入的 KU_
+        self.player_ids: dict[str, str] = {}  # name -> KU_(优先来自 client_auth 权威行)
+        self._auth_seen: bool = False         # 见过 client_auth 权威行后,通用 KU 就近配对降级为不入册
+        self._last_ku: str = ""               # 最近见到、尚未配给某次加入的 KU_(仅兜底路径用)
         self._last_ku_at: float = 0.0         # 见到该 KU_ 的单调时刻(配对设时间窗,排除启动期 token 误配)
         self._pending_join: str = ""          # 已加入但还没配到 KU_ 的昵称(等待回填)
         self._pending_join_at: float = 0.0
@@ -271,7 +273,19 @@ class ShardProcess:
             self.ready = True
             if self.is_alive():
                 self.state = ShardState.READY
+        elif ev.kind == "client_auth":
+            # 权威绑定:一行内同时拿到 KU 与昵称,直接入册(name/ku 已在 groups 里,manager 据此记账)。
+            # 从此切到权威模式,通用 KU 的就近配对不再参与入册,杜绝并发进服时的跨玩家错配。
+            ku = (ev.groups.get("ku") or "").strip()
+            name = (ev.groups.get("name") or "").strip()
+            if ku and name:
+                self._auth_seen = True
+                self.player_ids[name] = ku
+                self._pending_join = ""  # 权威行到手,作废待回填的就近配对
         elif ev.kind == "player_id":
+            if self._auth_seen:
+                return  # 已有权威来源,通用 KU 不再就近配对入册(同一行的 client_auth 已处理)
+            # —— 兜底(日志无 client_auth 行时):按时间窗就近把 KU_ 配给加入公告 ——
             # 连接/鉴权阶段的 KU_ 行通常先于"加入公告"出现:暂存,留给随后的加入配对。
             # 若加入公告反而先到(_pending_join 仍在时间窗内),就地回填并把昵称回写进事件供入册。
             ku = (ev.groups.get("ku") or "").strip()
@@ -287,6 +301,8 @@ class ShardProcess:
             name = (ev.groups.get("name") or "").strip()
             if name:
                 self.players.add(name)
+                if self._auth_seen:
+                    return  # 权威行已负责入册,加入公告仅维护在线集合,不再就近配对
                 now = time.monotonic()
                 # 仅当 KU_ 是刚刚(时间窗内)见到的才配对,避免启动期 token 等陈旧 KU_ 误配
                 if self._last_ku and now - self._last_ku_at <= _PAIR_WINDOW:

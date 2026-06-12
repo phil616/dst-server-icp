@@ -252,12 +252,15 @@ class Supervisor:
     def _log_events(self, sp: ShardProcess, events) -> None:
         key = sp.spec.key
         for ev in events:
-            if ev.kind == "player_join":
+            if ev.kind == "client_auth":
+                # 权威绑定:`Client authenticated: (KU_) 昵称` 一行内 KU↔昵称同源,直接入册
+                self._record_contact(ev.groups.get("name", ""), ev.groups.get("ku", ""))
+            elif ev.kind == "player_join":
                 log.info("👤 Shard %s 玩家加入:%s", key, ev.groups.get("name", "?"))
-                # process.py 已就近把 KU_ 配进 groups["klei_id"](若已知)
+                # 兜底:无 client_auth 行时,process.py 才把就近配到的 KU_ 配进 groups["klei_id"]
                 self._record_contact(ev.groups.get("name", ""), ev.groups.get("klei_id", ""))
             elif ev.kind == "player_id":
-                # KU_ 行晚于加入公告时,process.py 会回填 groups["name"],在此入册
+                # 兜底:KU_ 行晚于加入公告时,process.py 会回填 groups["name"],在此入册
                 if ev.groups.get("name"):
                     self._record_contact(ev.groups["name"], ev.groups.get("ku", ""))
             elif ev.kind == "player_leave":
