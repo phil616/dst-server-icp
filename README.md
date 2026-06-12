@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="logo-nbg.png" alt="Dst-serverd Logo" width="100">
+  <img src="./docs/images/logo-nbg.png" alt="Dst-serverd Logo" width="100">
   <h1>dst-server-icp</h1>
   <p>饥荒联机版服务器管理系统,统一管理多个服务器分片和实例</p>
 
