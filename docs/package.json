@@ -1,0 +1,15 @@
+{
+  "name": "dst-serverd-docs",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "VitePress documentation site for dst-server-icp",
+  "scripts": {
+    "docs:dev": "vitepress dev",
+    "docs:build": "vitepress build",
+    "docs:preview": "vitepress preview"
+  },
+  "devDependencies": {
+    "vitepress": "^1.6.3"
+  }
+}
