@@ -1,0 +1,60 @@
+name: Deploy Docs to Cloudflare Pages
+
+# 在 docs/ 变更推送到 main 时构建 VitePress 站点并部署到 Cloudflare Pages。
+# 站点最终通过自定义域名 https://dst-serverd-wiki.dreamreflex.com 访问。
+#
+# 需要在 GitHub 仓库 Settings → Secrets and variables → Actions 中配置:
+#   CLOUDFLARE_API_TOKEN   —— 具有 "Cloudflare Pages: Edit" 权限的 API Token
+#   CLOUDFLARE_ACCOUNT_ID  —— Cloudflare 账户 ID
+# 并在 Cloudflare Pages 中创建名为 dst-serverd-wiki 的项目、绑定自定义域名。
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/deploy-docs.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一时间只跑一个部署,新推送取消进行中的旧任务
+concurrency:
+  group: deploy-docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true          # 图片(logo 等)由 Git LFS 跟踪,必须拉取真实文件
+          fetch-depth: 0      # VitePress lastUpdated 需要完整 git 历史
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: docs/package-lock.json
+
+      - name: Install dependencies
+        working-directory: docs
+        run: npm ci
+
+      - name: Build VitePress site
+        working-directory: docs
+        run: npm run docs:build
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: >-
+            pages deploy docs/.vitepress/dist
+            --project-name=dst-serverd-wiki
+            --branch=main
