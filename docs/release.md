@@ -1,8 +1,5 @@
 # 打包与发布流程(AI 智能体可照做)
 
-> 本文目标:让任何人(或 AI 智能体)无需追问背景,就能把本项目正确打包并发布。
-> 读完「关键约束」再动手 —— 那几条是最容易踩的坑。
-
 ## 两个产物
 
 | 产物 | 文件名 | 由谁产出 | 去向 |
@@ -16,11 +13,11 @@
 
 ---
 
-## 关键约束(必读,最易踩坑)
+## 关键约束
 
 1. **GitHub 不可达**。目标机在国内、CNB CI 也只走白名单网络,**任何 github URL 都不要用**。uv、Python 解释器、依赖都要走国内/CNB 渠道。
 2. **没有 CI 发布**。CNB 流水线 `.cnb.yml` 已被删除(CI 连不上 github,无法构建)。发布流程是 **本地打包 → 手动在 CNB 网页上传 Release 附件**。不要试图加 CI 自动发布。
-3. **Python 解释器内置**。清华 PyPI 镜像只镜像 wheel,**不提供 Python 解释器**;南京大学的 python-build-standalone 镜像**已下架**(对其 URL 发请求可能返回 2xx 但文件实际不存在,别被骗)。所以发布包内置一份 standalone Python(`python/bin/python3.12`),`install-dst.sh` 用 `UV_PYTHON=<绝对路径>` + `UV_PYTHON_DOWNLOADS=never` 直接用它,绝不联网下载解释器。
+3. **Python 解释器内置**。清华 PyPI 镜像只镜像 wheel,**不提供 Python 解释器**;所以发布包内置一份 standalone Python(`python/bin/python3.12`),`install-dst.sh` 用 `UV_PYTHON=<绝对路径>` + `UV_PYTHON_DOWNLOADS=never` 直接用它,绝不联网下载解释器。
 4. **uv 从 CNB 镜像取**:`https://cnb.cool/dreamreflex/localize-uv/-/releases/latest/download/`(只放 uv,不放 Python)。
 5. **CNB Release 资产 HEAD 返回 400**。验证下载**必须用 GET**(`curl -fL ... -o file`),`curl -I`(HEAD)会误报失败。
 6. **raw 脚本直链格式**是 `/-/git/raw/main/<path>`,例如安装脚本:

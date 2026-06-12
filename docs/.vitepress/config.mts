@@ -3,7 +3,7 @@ import { defineConfig } from 'vitepress'
 // https://vitepress.dev/reference/site-config
 export default defineConfig({
   lang: 'zh-CN',
-  title: 'DST Serverd',
+  title: 'DST Server ICP',
   description: '饥荒联机版(Don\'t Starve Together)专用服务器管理系统 — 统一管理多个服务器分片和实例',
 
   // 部署到自定义域名根路径,base 保持默认 '/'
@@ -33,14 +33,13 @@ export default defineConfig({
 
     nav: [
       { text: '使用指南', link: '/guide' },
+      { text: '了解更多', link: '/about' },
       { text: '技术架构', link: '/architecture' },
-      { text: '手动部署', link: '/dst-server-setup' },
       {
-        text: '更多',
+        text: '代码托管',
         items: [
-          { text: '打包与发布', link: '/release' },
           { text: 'GitHub 仓库', link: 'https://github.com/phil616/dst-server-icp' },
-          { text: 'CNB 仓库', link: 'https://cnb.cool/greenshadecapital/dst-server-icp' },
+          { text: 'CNB 仓库（中国大陆）', link: 'https://cnb.cool/greenshadecapital/dst-server-icp' },
         ],
       },
     ],
@@ -49,28 +48,20 @@ export default defineConfig({
       {
         text: '开始使用',
         items: [
-          { text: '项目简介', link: '/' },
+          { text: '简介', link: '/' },
           { text: '使用指南', link: '/guide' },
+          { text: '了解更多', link: '/about' },
+          { text: '赞助商', link: '/sponsors' },
+          { text: '许可信息', link: '/licenses' },
         ],
       },
       {
-        text: '部署',
-        items: [
-          { text: '手动部署 DST 服务端', link: '/dst-server-setup' },
-        ],
-      },
-      {
-        text: '深入了解',
+        text: '开发者文档',
         items: [
           { text: '技术架构方案', link: '/architecture' },
-        ],
-      },
-      {
-        text: '维护',
-        items: [
           { text: '打包与发布流程', link: '/release' },
         ],
-      },
+      }
     ],
 
     socialLinks: [

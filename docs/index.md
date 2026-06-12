@@ -2,12 +2,12 @@
 layout: home
 
 hero:
-  name: DST Serverd
+  name: dst-server-icp
   text: 饥荒联机版服务器管理系统
-  tagline: 单机 · 无 Docker · 进程直管 —— 统一管理多个服务器分片与实例,重启后端不打断玩家
+  tagline: 单机 · 无 Docker · 进程直管 · 轻量的多饥荒服务器分片管理系统
   image:
     src: /logo.png
-    alt: DST Serverd
+    alt: dst-server-icp
   actions:
     - theme: brand
       text: 快速开始
@@ -39,14 +39,6 @@ features:
     title: 实时可观测
     details: 活动流 + Shard 日志经 WebSocket 实时推送;前端 React + TypeScript + Ant Design 单页控制台。
 ---
-
-## 这是什么
-
-**dst-server-icp** 是饥荒联机版(Don't Starve Together)专用服务器的管理后端。
-
-**单机、无 Docker** —— Python 后端用 `subprocess` 直接托管每个 Shard 进程,重启后凭 **PID + FIFO + 日志 offset** 重新接管已有 Shard,**不打断玩家**。后端由 uv + systemd 托管,前端为 React + TypeScript + Ant Design 单页应用,后端在 `/` 托管其构建产物。
-
-> 默认部署在内网,不做认证 / 鉴权。详见[技术架构](/architecture)。
 
 ## 一键安装
 
