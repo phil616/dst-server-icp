@@ -1,4 +1,10 @@
-# dst-serverd
+<div align="center">
+  <img src="logo-nbg.png" alt="Dst-serverd Logo" width="100">
+  <h1>dst-server-icp</h1>
+  <p>饥荒联机版服务器管理系统,统一管理多个服务器分片和实例</p>
+
+  [文档](https://github.com/phil616/dst-server-icp/tree/main/docs) · [一键安装](#一键安装)
+</div>
 
 饥荒联机版(Don't Starve Together)专用服务器管理后端。
 
