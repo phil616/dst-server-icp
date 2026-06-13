@@ -19,8 +19,8 @@ dist/dst-deployer-qt/
   dst-deployer-core
 ```
 
-Windows 下文件名为 `dst-deployer-qt.exe` 和 `dst-deployer-core.exe`。
-发布给其他 Windows 机器前,脚本会在找到 `windeployqt` 时自动复制 Qt 运行库。
+Windows 本地脚本产物目录里会包含 `dst-deployer-qt.exe`、`dst-deployer-core.exe`
+和 Qt 运行库。GitHub Actions 发版会额外打成一个双击即用的单文件 EXE。
 
 ## 依赖
 
@@ -76,7 +76,7 @@ dist/dst-deployer-qt/
 
 - `dst-serverd-x86_64-linux.tar.gz`: `build-release.sh` 生成的服务端更新包
 - `dst-deployer-qt-linux-x86_64.tar.gz`: Linux Qt GUI 包,内含 GUI 程序和 Go core
-- `dst-deployer-qt-windows-x86_64-setup.exe`: Windows 单文件安装器,内含 Qt GUI、Go core 和 Qt 运行库
+- `dst-deployer-qt-windows-x86_64.exe`: Windows 双击即用单文件 EXE,内含 Qt GUI、Go core 和 Qt 运行库
 
 ## 已覆盖功能
 

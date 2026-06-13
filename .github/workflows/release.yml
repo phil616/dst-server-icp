@@ -77,7 +77,7 @@ jobs:
           if-no-files-found: error
 
   windows-qt:
-    name: Windows Qt GUI installer
+    name: Windows Qt GUI portable EXE
     runs-on: windows-2022
     steps:
       - name: Checkout
@@ -136,21 +136,21 @@ jobs:
         shell: pwsh
         run: choco install nsis -y --no-progress
 
-      - name: Build single-file Windows installer
+      - name: Build single-file Windows portable launcher
         shell: pwsh
         run: |
           $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           & $nsis `
             "/DAPP_VERSION=$env:RELEASE_TAG" `
             "/DSOURCE_DIR=$((Resolve-Path 'dist\dst-deployer-qt-windows').Path)" `
-            "/DOUT_FILE=$((Resolve-Path 'dist').Path)\dst-deployer-qt-windows-x86_64-setup.exe" `
-            "qt_gui\installer\windows.nsi"
+            "/DOUT_FILE=$((Resolve-Path 'dist').Path)\dst-deployer-qt-windows-x86_64.exe" `
+            "qt_gui\installer\portable.nsi"
 
       - name: Upload Windows Qt GUI artifact
         uses: actions/upload-artifact@v4
         with:
           name: qt-gui-windows
-          path: dist/dst-deployer-qt-windows-x86_64-setup.exe
+          path: dist/dst-deployer-qt-windows-x86_64.exe
           if-no-files-found: error
 
   publish-release:
