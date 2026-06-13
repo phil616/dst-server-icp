@@ -15,8 +15,8 @@ import (
 
 // FirewallInfo 是一次防火墙检测的结构化结果。
 type FirewallInfo struct {
-	Kind   string // ufw / firewalld / nftables / iptables / none
-	Active bool   // 是否处于“启用/有拦截规则”状态
+	Kind   string `json:"kind"`   // ufw / firewalld / nftables / iptables / none
+	Active bool   `json:"active"` // 是否处于“启用/有拦截规则”状态
 }
 
 // 检测脚本:输出人类可读说明 + 形如 FW_KIND=xxx / FW_ACTIVE=0|1 的机读标记。

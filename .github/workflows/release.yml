@@ -1,0 +1,181 @@
+name: Build Release Assets
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag, for example v1.0.3.'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+env:
+  QT_VERSION: '6.7.3'
+  RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+jobs:
+  linux-assets:
+    name: Linux tarball and Qt GUI
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: gui/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install Qt build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build qt6-base-dev libgl1-mesa-dev
+
+      - name: Build server release tarball
+        run: bash build-release.sh --rebuild-frontend --expect-version "$RELEASE_TAG"
+
+      - name: Build Linux Qt GUI package
+        run: |
+          bash build-qt.sh
+          tar -czf "dist/dst-deployer-qt-linux-x86_64.tar.gz" -C dist dst-deployer-qt
+
+      - name: Upload server tarball artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-release-tarball
+          path: dist/dst-serverd-*-linux.tar.gz
+          if-no-files-found: error
+
+      - name: Upload Linux Qt GUI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-gui-linux
+          path: dist/dst-deployer-qt-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  windows-qt:
+    name: Windows Qt GUI installer
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache-dependency-path: gui/go.sum
+
+      - name: Setup Python for aqtinstall
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Qt
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install aqtinstall
+          python -m aqt install-qt windows desktop $env:QT_VERSION win64_msvc2019_64 -O "$env:RUNNER_TEMP\Qt"
+          "$env:RUNNER_TEMP\Qt\$env:QT_VERSION\msvc2019_64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Build Go core
+        shell: bash
+        run: |
+          cd gui
+          bash build.sh --core
+
+      - name: Configure Qt GUI
+        shell: pwsh
+        run: |
+          cmake -S qt_gui -B qt_gui/build `
+            -G "Visual Studio 17 2022" -A x64 `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_PREFIX_PATH="$env:RUNNER_TEMP\Qt\$env:QT_VERSION\msvc2019_64"
+
+      - name: Build Qt GUI
+        shell: pwsh
+        run: cmake --build qt_gui/build --config Release
+
+      - name: Stage Windows app directory
+        shell: pwsh
+        run: |
+          $stage = "dist\dst-deployer-qt-windows"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "qt_gui\build\Release\dst-deployer-qt.exe" "$stage\"
+          Copy-Item "gui\dist\dst-deployer-core.exe" "$stage\"
+          windeployqt --release --no-translations "$stage\dst-deployer-qt.exe"
+
+      - name: Install NSIS
+        shell: pwsh
+        run: choco install nsis -y --no-progress
+
+      - name: Build single-file Windows installer
+        shell: pwsh
+        run: |
+          $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
+          & $nsis `
+            "/DAPP_VERSION=$env:RELEASE_TAG" `
+            "/DSOURCE_DIR=$((Resolve-Path 'dist\dst-deployer-qt-windows').Path)" `
+            "/DOUT_FILE=$((Resolve-Path 'dist').Path)\dst-deployer-qt-windows-x86_64-setup.exe" `
+            "qt_gui\installer\windows.nsi"
+
+      - name: Upload Windows Qt GUI artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: qt-gui-windows
+          path: dist/dst-deployer-qt-windows-x86_64-setup.exe
+          if-no-files-found: error
+
+  publish-release:
+    name: Upload assets to GitHub Release
+    runs-on: ubuntu-24.04
+    needs:
+      - linux-assets
+      - windows-qt
+    steps:
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: List release assets
+        run: find release-assets -maxdepth 2 -type f -print -exec ls -lh {} \;
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="$RELEASE_TAG"
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --title "$tag" --notes "Automated release assets for $tag"
+          fi
+          gh release upload "$tag" release-assets/* --clobber
