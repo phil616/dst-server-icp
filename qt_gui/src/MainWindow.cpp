@@ -138,13 +138,16 @@ QWidget *MainWindow::buildDeployTab()
     cancelBtn_->setEnabled(false);
     auto *clearBtn = new QPushButton(QStringLiteral("清空日志"), logBox);
     auto *openLogBtn = new QPushButton(QStringLiteral("日志目录"), logBox);
+    auto *openConfigBtn = new QPushButton(QStringLiteral("持久化目录"), logBox);
     logTools->addWidget(cancelBtn_);
     logTools->addWidget(clearBtn);
     logTools->addWidget(openLogBtn);
+    logTools->addWidget(openConfigBtn);
     logTools->addStretch(1);
     connect(cancelBtn_, &QPushButton::clicked, this, &MainWindow::cancelOperation);
     connect(clearBtn, &QPushButton::clicked, this, [this]() { logView_->clear(); });
     connect(openLogBtn, &QPushButton::clicked, this, &MainWindow::openLogDir);
+    connect(openConfigBtn, &QPushButton::clicked, this, &MainWindow::openConfigDir);
     logView_ = new QPlainTextEdit(logBox);
     logView_->setReadOnly(true);
     logView_->setMaximumBlockCount(1500);
@@ -296,7 +299,15 @@ void MainWindow::loadConfig()
         setStatus(QStringLiteral("fail"), QStringLiteral("未找到 core: %1").arg(corePath_));
         return;
     }
-    const auto event = callCore(QStringLiteral("config"));
+    loadPaths();
+    QJsonObject event;
+    try {
+        event = callCore(QStringLiteral("config"));
+    } catch (const std::exception &ex) {
+        setStatus(QStringLiteral("fail"), QStringLiteral("读取配置失败"));
+        showError(QStringLiteral("%1\n\n可点击“持久化目录”打开配置目录,删除 config.json 后重试。").arg(QString::fromUtf8(ex.what())));
+        return;
+    }
     if (!event.contains(QStringLiteral("config"))) {
         setStatus(QStringLiteral("fail"), QStringLiteral("读取配置失败: core 未返回配置"));
         return;
@@ -314,6 +325,25 @@ void MainWindow::loadConfig()
     }
     refreshProfiles(cfg.value(QStringLiteral("selected")).toString());
     setStatus(QStringLiteral("idle"), QStringLiteral("● 空闲"));
+}
+
+void MainWindow::loadPaths()
+{
+    try {
+        const auto event = callCore(QStringLiteral("paths"));
+        const auto payload = event.value(QStringLiteral("config")).toObject();
+        const QString path = payload.value(QStringLiteral("path")).toString();
+        const QString logs = payload.value(QStringLiteral("log_dir")).toString();
+        if (!path.isEmpty()) {
+            configPath_ = path;
+        }
+        if (!logs.isEmpty()) {
+            logDir_ = logs;
+        }
+    } catch (const std::exception &) {
+        // loadConfig will surface the main error. This best-effort path lookup
+        // only exists so users can recover from a broken config file.
+    }
 }
 
 void MainWindow::refreshProfiles(const QString &selected)
@@ -387,6 +417,18 @@ QJsonObject MainWindow::baseRequest() const
     return {
         {QStringLiteral("profile"), profile},
         {QStringLiteral("selected"), profile.value(QStringLiteral("name")).toString()},
+        {QStringLiteral("mirror"), mirrorEntry_->text().trimmed()},
+        {QStringLiteral("use_sudo"), sudoCheck_->isChecked()},
+        {QStringLiteral("apt_upgrade"), upgradeCheck_->isChecked()},
+    };
+}
+
+QJsonObject MainWindow::runRequest(const QString &operation) const
+{
+    const auto profile = profileFromForm();
+    return {
+        {QStringLiteral("operation"), operation},
+        {QStringLiteral("profile"), profile},
         {QStringLiteral("mirror"), mirrorEntry_->text().trimmed()},
         {QStringLiteral("use_sudo"), sudoCheck_->isChecked()},
         {QStringLiteral("apt_upgrade"), upgradeCheck_->isChecked()},
@@ -475,15 +517,15 @@ void MainWindow::runOperation(const QString &operation)
         return;
     }
     try {
-        auto req = baseRequest();
-        req.insert(QStringLiteral("operation"), operation);
+        const auto saveReq = baseRequest();
+        auto req = runRequest(operation);
         if (operation == QStringLiteral("allow-port")) {
             const auto protos = protoFlags();
             req.insert(QStringLiteral("port"), firewallPort());
             req.insert(QStringLiteral("tcp"), protos.first);
             req.insert(QStringLiteral("udp"), protos.second);
         }
-        callCore(QStringLiteral("save-profile"), req);
+        callCore(QStringLiteral("save-profile"), saveReq);
 
         coreProcess_ = new QProcess(this);
         processBuffer_.clear();
@@ -608,6 +650,29 @@ void MainWindow::openLogDir()
         return;
     }
     QDesktopServices::openUrl(QUrl::fromLocalFile(logDir_));
+}
+
+void MainWindow::openConfigDir()
+{
+    QString dir;
+    if (!configPath_.isEmpty()) {
+        dir = QFileInfo(configPath_).absolutePath();
+    }
+    if (dir.isEmpty() && !logDir_.isEmpty()) {
+        dir = QFileInfo(logDir_).absolutePath();
+    }
+    if (dir.isEmpty()) {
+        loadPaths();
+        if (!configPath_.isEmpty()) {
+            dir = QFileInfo(configPath_).absolutePath();
+        }
+    }
+    if (dir.isEmpty()) {
+        showError(QStringLiteral("持久化目录尚未初始化"));
+        return;
+    }
+    QDir().mkpath(dir);
+    QDesktopServices::openUrl(QUrl::fromLocalFile(dir));
 }
 
 int MainWindow::firewallPort() const

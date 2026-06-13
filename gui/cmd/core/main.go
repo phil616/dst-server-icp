@@ -35,6 +35,8 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 		return usage()
 	}
 	switch args[0] {
+	case "paths":
+		return printPaths(stdout)
 	case "config":
 		return printConfig(stdout)
 	case "save-profile":
@@ -61,28 +63,47 @@ func run(args []string, stdin io.Reader, stdout io.Writer) error {
 }
 
 func usage() error {
-	return errors.New("用法: dst-deployer-core config | save-profile | delete-profile | run")
+	return errors.New("用法: dst-deployer-core paths | config | save-profile | delete-profile | run")
 }
 
 func decode(r io.Reader, v any) error {
 	dec := json.NewDecoder(r)
-	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
 		return fmt.Errorf("解析请求 JSON 失败: %w", err)
 	}
 	return nil
 }
 
-func printConfig(stdout io.Writer) error {
-	cfg, err := config.Load()
-	if err != nil {
-		return err
-	}
+func printPaths(stdout io.Writer) error {
 	path, err := config.Path()
 	if err != nil {
 		return err
 	}
 	dir, err := config.Dir()
+	if err != nil {
+		return err
+	}
+	emit(stdout, coreio.Envelope{
+		Type: "paths",
+		Config: &coreio.ConfigResponse{
+			Path:          path,
+			LogDir:        filepath.Join(dir, "logs"),
+			DefaultMirror: config.DefaultMirror,
+		},
+	})
+	return nil
+}
+
+func printConfig(stdout io.Writer) error {
+	path, err := config.Path()
+	if err != nil {
+		return err
+	}
+	dir, err := config.Dir()
+	if err != nil {
+		return err
+	}
+	cfg, err := config.Load()
 	if err != nil {
 		return err
 	}

@@ -28,6 +28,7 @@ private slots:
     void coreFinished(int exitCode, QProcess::ExitStatus status);
     void cancelOperation();
     void openLogDir();
+    void openConfigDir();
 
 private:
     QWidget *buildDeployTab();
@@ -42,7 +43,9 @@ private:
     void fillProfile(const QJsonObject &profile);
     QJsonObject profileFromForm() const;
     QJsonObject baseRequest() const;
+    QJsonObject runRequest(const QString &operation) const;
     QJsonObject callCore(const QString &command, const QJsonObject &payload = {}) const;
+    void loadPaths();
     QList<QJsonObject> parseJsonLines(const QByteArray &data) const;
     void handleEvent(const QJsonObject &event);
     void handleDone(const QJsonObject &event);
@@ -95,4 +98,3 @@ private:
     QLineEdit *fwPortEntry_ = nullptr;
     QComboBox *fwProtoSelect_ = nullptr;
 };
-
