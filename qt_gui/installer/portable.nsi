@@ -10,8 +10,13 @@
 !define OUT_FILE "..\..\dist\dst-deployer-qt-windows.exe"
 !endif
 
+!ifndef APP_ICON
+!define APP_ICON "..\assets\app.ico"
+!endif
+
 Name "DST Deployer"
 OutFile "${OUT_FILE}"
+Icon "${APP_ICON}"
 RequestExecutionLevel user
 Unicode true
 SilentInstall silent
@@ -31,4 +36,3 @@ Section
   File /r "${SOURCE_DIR}\*"
   ExecWait '"$PLUGINSDIR\dst-deployer-qt.exe"'
 SectionEnd
-

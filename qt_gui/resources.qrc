@@ -1,0 +1,5 @@
+<RCC>
+    <qresource prefix="/app">
+        <file alias="logo-nbg.png">../docs/images/logo-nbg.png</file>
+    </qresource>
+</RCC>
