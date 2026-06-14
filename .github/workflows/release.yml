@@ -142,6 +142,7 @@ jobs:
           $nsis = "${env:ProgramFiles(x86)}\NSIS\makensis.exe"
           & $nsis `
             "/DAPP_VERSION=$env:RELEASE_TAG" `
+            "/DAPP_ICON=$((Resolve-Path 'qt_gui\assets\app.ico').Path)" `
             "/DSOURCE_DIR=$((Resolve-Path 'dist\dst-deployer-qt-windows').Path)" `
             "/DOUT_FILE=$((Resolve-Path 'dist').Path)\dst-deployer-qt-windows-x86_64.exe" `
             "qt_gui\installer\portable.nsi"
