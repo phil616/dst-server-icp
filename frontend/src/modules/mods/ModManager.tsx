@@ -188,6 +188,11 @@ function mergeTranslation(prev: ModConfigTranslation, next: ModConfigTranslation
   };
 }
 
+function translationCount(result: ModConfigTranslation, target: "labels" | "choices") {
+  if (target === "labels") return Object.keys(result.labels).length;
+  return Object.values(result.choices).reduce((sum, values) => sum + Object.keys(values).length, 0);
+}
+
 function configEntriesForDisplay(mod: Mod) {
   const entries = mod.config_schema.options.map((option) => {
     const resolved = resolveOptionValue(option, mod.config);
@@ -282,7 +287,14 @@ function ModConfigModal(
     try {
       const result = await translate.mutateAsync({ id: instanceId, workshopId: mod.workshop_id, target });
       setTranslation((prev) => mergeTranslation(prev, result));
-      message.success(target === "labels" ? "配置项已翻译" : "配置值已翻译");
+      const count = translationCount(result, target);
+      if (count) {
+        message.success(target === "labels" ? `配置项已翻译 ${count} 个` : `配置值已翻译 ${count} 个`);
+      } else {
+        message.warning(target === "labels"
+          ? "AI 未返回可用的配置项翻译,详情见系统日志"
+          : "AI 未返回可匹配的配置值翻译,详情见系统日志", 8);
+      }
     } catch (e) {
       message.error((e as Error).message);
     } finally {
