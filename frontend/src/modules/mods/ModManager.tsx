@@ -11,9 +11,9 @@ import dayjs from "dayjs";
 import { useEffect, useState } from "react";
 import {
   useCheckModUpdates, useRemoveMod, useRepairLibrary, useTriggerModsUpdate,
-  useTriggerOneModUpdate, useUpdateMod, waitForJob,
+  useTranslateModConfig, useTriggerOneModUpdate, useUpdateMod, waitForJob,
 } from "../../api/hooks";
-import type { Mod, ModConfigOption, ModUpdateStatus } from "../../api/types";
+import type { Mod, ModConfigChoice, ModConfigOption, ModConfigTranslation, ModUpdateStatus } from "../../api/types";
 import { useTaskQueue } from "../../task-queue-context";
 import { ModSearchModal } from "./ModSearchModal";
 
@@ -24,6 +24,8 @@ const UPDATE_TAG: Record<ModUpdateStatus, { color: string; text: string }> = {
   unchecked: { color: "default", text: "未检查" },
   manual: { color: "blue", text: "手动 MOD" },
 };
+
+const EMPTY_TRANSLATION: ModConfigTranslation = { labels: {}, choices: {} };
 
 /** 版本号格式化:纯数字版本(如 1.2.3)加 "v" 前缀;含空格/字母的字符串版本(部分 MOD 把
  *  整串塞进 modinfo 的 version 字段,如 "under the weather pt.1 v1.5.4.1")原样显示,不再被截断。 */
@@ -43,8 +45,20 @@ function hasOwn(obj: Record<string, unknown>, key: string): boolean {
   return Object.prototype.hasOwnProperty.call(obj, key);
 }
 
+function stableValue(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(stableValue);
+  if (v !== null && typeof v === "object") {
+    return Object.fromEntries(
+      Object.entries(v as Record<string, unknown>)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([key, val]) => [key, stableValue(val)]),
+    );
+  }
+  return v;
+}
+
 function valueKey(v: unknown): string {
-  const s = JSON.stringify(v);
+  const s = JSON.stringify(stableValue(v));
   return s === undefined ? "undefined" : s;
 }
 
@@ -58,6 +72,7 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 }
 
 function displayConfigValue(v: unknown): string {
+  if (v === undefined) return "未设置";
   if (v === null) return "nil";
   if (typeof v === "boolean") return v ? "true" : "false";
   if (typeof v === "string") return v || "\"\"";
@@ -79,15 +94,23 @@ function parseEditableValue(v: unknown, sample: unknown): unknown {
   return v ?? "";
 }
 
+function resolveOptionValue(option: ModConfigOption, config: Record<string, unknown>) {
+  if (hasOwn(config, option.name)) return { value: config[option.name], source: "saved" as const };
+  if (option.has_default) return { value: option.default, source: "default" as const };
+  return { value: undefined, source: "unset" as const };
+}
+
 function optionValue(option: ModConfigOption, config: Record<string, unknown>): unknown {
-  return hasOwn(config, option.name) ? config[option.name] : option.default;
+  return resolveOptionValue(option, config).value;
 }
 
 function initialConfigValues(mod: Mod): Record<string, unknown> {
   const values: Record<string, unknown> = {};
   for (const option of mod.config_schema.options) {
-    const current = optionValue(option, mod.config);
-    values[option.name] = option.options.length ? valueKey(current) : editableValue(current);
+    const current = resolveOptionValue(option, mod.config);
+    if (current.source !== "unset") {
+      values[option.name] = option.options.length ? valueKey(current.value) : editableValue(current.value);
+    }
   }
   const known = new Set(mod.config_schema.options.map((o) => o.name));
   for (const [key, value] of Object.entries(mod.config)) {
@@ -112,12 +135,13 @@ function buildConfigFromForm(mod: Mod, formConfig: Record<string, unknown>): Rec
 
   for (const option of mod.config_schema.options) {
     const raw = formConfig[option.name];
+    if (raw === undefined && !hasOwn(mod.config, option.name)) continue;
     const choices = new Map(option.options.map((choice) => [valueKey(choice.data), choice.data]));
     const rawKey = String(raw);
     const parsed = option.options.length
       ? choices.get(rawKey) ?? parseValueKey(rawKey)
       : parseEditableValue(raw, optionValue(option, mod.config));
-    if (hasOwn(mod.config, option.name) || !valuesEqual(parsed, option.default)) {
+    if (hasOwn(mod.config, option.name) || !option.has_default || !valuesEqual(parsed, option.default)) {
       next[option.name] = parsed;
     }
   }
@@ -130,23 +154,84 @@ function buildConfigFromForm(mod: Mod, formConfig: Record<string, unknown>): Rec
   return next;
 }
 
-function ConfigValueInput({ option, value }: { option?: ModConfigOption; value: unknown }) {
+function translatedOptionLabel(option: ModConfigOption, translation: ModConfigTranslation) {
+  const original = option.label || option.name;
+  const translated = translation.labels[option.name];
+  if (!translated) return original;
+  return (
+    <Space size={6} wrap>
+      <span>{translated}</span>
+      <Typography.Text type="secondary">{original}</Typography.Text>
+    </Space>
+  );
+}
+
+function translatedChoiceLabel(
+  option: ModConfigOption | undefined, choice: ModConfigChoice, translation: ModConfigTranslation,
+) {
+  const original = choice.description || displayConfigValue(choice.data);
+  if (!option) return original;
+  const translated = translation.choices[option.name]?.[valueKey(choice.data)];
+  return translated ? `${translated} (${original})` : original;
+}
+
+function optionTooltip(option: ModConfigOption, translation: ModConfigTranslation): string {
+  const translated = translation.labels[option.name];
+  const original = option.label || option.name;
+  return [translated ? `原文:${original}` : "", option.hover].filter(Boolean).join("\n") || option.name;
+}
+
+function mergeTranslation(prev: ModConfigTranslation, next: ModConfigTranslation): ModConfigTranslation {
+  return {
+    labels: { ...prev.labels, ...next.labels },
+    choices: { ...prev.choices, ...next.choices },
+  };
+}
+
+function configEntriesForDisplay(mod: Mod) {
+  const entries = mod.config_schema.options.map((option) => {
+    const resolved = resolveOptionValue(option, mod.config);
+    return {
+      key: option.name,
+      label: option.label || option.name,
+      value: resolved.value,
+      source: resolved.source,
+    };
+  });
+  const known = new Set(mod.config_schema.options.map((option) => option.name));
+  for (const [key, value] of Object.entries(mod.config)) {
+    if (!known.has(key)) entries.push({ key, label: key, value, source: "saved" as const });
+  }
+  return entries;
+}
+
+function sourceTag(source: "saved" | "default" | "unset") {
+  if (source === "saved") return <Tag color="success">已保存</Tag>;
+  if (source === "default") return <Tag color="blue">默认</Tag>;
+  return <Tag color="default">未设置</Tag>;
+}
+
+function ConfigValueInput(
+  { option, value, translation }: {
+    option?: ModConfigOption; value: unknown; translation: ModConfigTranslation;
+  },
+) {
   if (option?.options.length) {
-    const currentKey = valueKey(value);
+    const currentKey = value === undefined ? "" : valueKey(value);
     const seen = new Set<string>();
     const selectOptions = option.options.map((choice) => {
       const key = valueKey(choice.data);
       seen.add(key);
       return {
         value: key,
-        label: choice.description || displayConfigValue(choice.data),
+        label: translatedChoiceLabel(option, choice, translation),
         title: choice.hover || displayConfigValue(choice.data),
       };
     });
-    if (!seen.has(currentKey)) {
+    if (currentKey && !seen.has(currentKey)) {
       selectOptions.push({ value: currentKey, label: displayConfigValue(value), title: displayConfigValue(value) });
     }
-    return <Select options={selectOptions} />;
+    return <Select allowClear options={selectOptions} placeholder="未设置" />;
   }
   if (typeof value === "boolean") return <Switch />;
   if (typeof value === "number") return <InputNumber style={{ width: "100%" }} />;
@@ -161,10 +246,14 @@ function ModConfigModal(
 ) {
   const [form] = Form.useForm();
   const update = useUpdateMod();
+  const translate = useTranslateModConfig();
   const schemaOptions = mod?.config_schema.options ?? [];
+  const [translation, setTranslation] = useState<ModConfigTranslation>(EMPTY_TRANSLATION);
+  const [translating, setTranslating] = useState<"labels" | "choices" | null>(null);
 
   useEffect(() => {
     if (!mod) return;
+    setTranslation(EMPTY_TRANSLATION);
     form.setFieldsValue({
       config: initialConfigValues(mod),
       raw: JSON.stringify(mod.config, null, 2),
@@ -187,8 +276,23 @@ function ModConfigModal(
     }
   };
 
+  const runTranslate = async (target: "labels" | "choices") => {
+    if (!mod) return;
+    setTranslating(target);
+    try {
+      const result = await translate.mutateAsync({ id: instanceId, workshopId: mod.workshop_id, target });
+      setTranslation((prev) => mergeTranslation(prev, result));
+      message.success(target === "labels" ? "配置项已翻译" : "配置值已翻译");
+    } catch (e) {
+      message.error((e as Error).message);
+    } finally {
+      setTranslating(null);
+    }
+  };
+
   const known = new Set(schemaOptions.map((o) => o.name));
   const extraEntries = mod ? Object.entries(mod.config).filter(([key]) => !known.has(key)) : [];
+  const hasChoices = schemaOptions.some((option) => option.options.length > 0);
 
   return (
     <Modal
@@ -205,6 +309,24 @@ function ModConfigModal(
         <Form form={form} layout="vertical">
           {schemaOptions.length ? (
             <>
+              <Space wrap style={{ marginBottom: 12 }}>
+                <Button
+                  size="small"
+                  disabled={translating !== null}
+                  loading={translating === "labels"}
+                  onClick={() => runTranslate("labels")}
+                >
+                  翻译配置项
+                </Button>
+                <Button
+                  size="small"
+                  disabled={!hasChoices || translating !== null}
+                  loading={translating === "choices"}
+                  onClick={() => runTranslate("choices")}
+                >
+                  翻译配置值
+                </Button>
+              </Space>
               {schemaOptions.map((option) => {
                 const value = optionValue(option, mod.config);
                 const isSwitch = !option.options.length && typeof value === "boolean";
@@ -214,12 +336,12 @@ function ModConfigModal(
                   <Form.Item
                     key={option.name}
                     name={["config", option.name]}
-                    label={option.label || option.name}
-                    tooltip={option.hover || option.name}
+                    label={translatedOptionLabel(option, translation)}
+                    tooltip={optionTooltip(option, translation)}
                     valuePropName={isSwitch ? "checked" : "value"}
                     rules={isJson ? [jsonRule()] : undefined}
                   >
-                    <ConfigValueInput option={option} value={value} />
+                    <ConfigValueInput option={option} value={value} translation={translation} />
                   </Form.Item>
                 );
               })}
@@ -237,7 +359,7 @@ function ModConfigModal(
                         valuePropName={isSwitch ? "checked" : "value"}
                         rules={isJson ? [jsonRule()] : undefined}
                       >
-                        <ConfigValueInput value={value} />
+                        <ConfigValueInput value={value} translation={translation} />
                       </Form.Item>
                     );
                   })}
@@ -404,16 +526,22 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
         rowKey="id" size="small" dataSource={mods} columns={columns} pagination={false}
         locale={{ emptyText: "暂无 MOD" }}
         expandable={{
-          rowExpandable: (m) => Object.keys(m.config).length > 0,
-          expandedRowRender: (m) => (
-            Object.keys(m.config).length ? (
+          rowExpandable: (m) => configEntriesForDisplay(m).length > 0,
+          expandedRowRender: (m) => {
+            const entries = configEntriesForDisplay(m);
+            return entries.length ? (
               <Descriptions size="small" column={2} bordered title="configuration_options">
-                {Object.entries(m.config).map(([k, v]) => (
-                  <Descriptions.Item key={k} label={k}>{displayConfigValue(v)}</Descriptions.Item>
+                {entries.map((entry) => (
+                  <Descriptions.Item key={entry.key} label={entry.label}>
+                    <Space size={6} wrap>
+                      <span>{displayConfigValue(entry.value)}</span>
+                      {sourceTag(entry.source)}
+                    </Space>
+                  </Descriptions.Item>
                 ))}
               </Descriptions>
-            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已保存配置" />
-          ),
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无配置项" />;
+          },
         }}
       />
       <ModSearchModal instanceId={instanceId} existingIds={existingIds}

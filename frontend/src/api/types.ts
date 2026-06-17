@@ -130,14 +130,21 @@ export interface ModConfigOption {
   name: string;
   label: string;
   hover: string;
+  has_default: boolean;
   default: unknown;
   options: ModConfigChoice[];
 }
 
 export interface ModConfigSchema {
   installed: boolean;
+  info: Record<string, unknown>;
   options: ModConfigOption[];
   error: string;
+}
+
+export interface ModConfigTranslation {
+  labels: Record<string, string>;
+  choices: Record<string, Record<string, string>>;
 }
 
 export interface Mod {
@@ -205,6 +212,12 @@ export interface ProxyCfg {
   password: string;
   no_proxy: string;
   active: boolean;
+}
+
+export interface AiSettings {
+  api_base: string;
+  api_key: string;
+  model: string;
 }
 
 export interface CreateInstancePayload {

@@ -9,6 +9,7 @@ from pydantic import BaseModel
 
 from ..activity import read_tail
 from ..proxy import ProxyConfig, load_proxy, save_proxy
+from ..services import ai as ai_svc
 from ..services import contacts as contacts_svc
 from ..services import install
 from ..services import modupdate
@@ -30,6 +31,12 @@ class ProxyBody(BaseModel):
 
 class ServerUpdateBody(BaseModel):
     validate_files: bool = True  # 装有手动 MOD 时设 false(见 DESIGN.md 3.1#10)
+
+
+class AiSettingsBody(BaseModel):
+    api_base: str = "https://api.openai.com/v1"
+    api_key: str = ""
+    model: str = ""
 
 
 # ---------- 代理 ----------
@@ -147,6 +154,17 @@ def put_backup_policy(body: BackupPolicy, request: Request) -> dict:
     db.set_kv("backup_interval_min", str(max(1, body.interval_min)))
     db.set_kv("backup_retention", str(max(1, body.retention)))
     return get_backup_policy(request)
+
+
+# ---------- AI 翻译设置(全局,明文存储) ----------
+@router.get("/settings/ai")
+def get_ai_settings(request: Request) -> dict:
+    return ai_svc.load_ai_settings(deps.db(request))
+
+
+@router.put("/settings/ai")
+def put_ai_settings(body: AiSettingsBody, request: Request) -> dict:
+    return ai_svc.save_ai_settings(deps.db(request), body.model_dump())
 
 
 # ---------- 本地通讯录(全局):玩家加入即自动记忆 昵称↔Klei ID ----------

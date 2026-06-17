@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from "@tanstack/react-query";
 import * as api from "./endpoints";
-import type { AccessKind, BackupPolicy, CreateInstancePayload, Instance, Job } from "./types";
+import type { AccessKind, AiSettings, BackupPolicy, CreateInstancePayload, Instance, Job } from "./types";
 
 // ---- 查询(带轮询,实时反映运行状态) ----
 export const useInstances = () =>
@@ -34,6 +34,9 @@ export const useHealth = () =>
 
 export const useProxy = () =>
   useQuery({ queryKey: ["proxy"], queryFn: api.getProxy });
+
+export const useAiSettings = () =>
+  useQuery({ queryKey: ["aiSettings"], queryFn: api.getAiSettings });
 
 // ---- 本地通讯录 ----
 export const useContacts = () =>
@@ -140,6 +143,11 @@ export const useTriggerOneModUpdate = () => {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 };
+export const useTranslateModConfig = () =>
+  useMutation({
+    mutationFn: ({ id, workshopId, target }: { id: number; workshopId: string; target: "labels" | "choices" }) =>
+      api.translateModConfig(id, workshopId, target),
+  });
 export const useRepairLibrary = () => {
   const qc = useQueryClient();
   return useMutation({
@@ -201,6 +209,14 @@ export const useSaveProxy = () => {
   return useMutation({
     mutationFn: api.putProxy,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["proxy"] }),
+  });
+};
+
+export const useSaveAiSettings = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: AiSettings) => api.putAiSettings(p),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["aiSettings"] }),
   });
 };
 

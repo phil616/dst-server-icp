@@ -7,6 +7,7 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
+from typing import Literal
 
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -14,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from ..parse import read_cluster_config
 from ..services import backups as backup_svc
+from ..services import ai as ai_svc
 from ..services import importer as import_svc
 from ..services import instances as svc
 from ..services import modconfig
@@ -51,6 +53,10 @@ class ModCreate(BaseModel):
 class ModUpdate(BaseModel):
     enabled: bool | None = None
     config: dict | None = None
+
+
+class ModTranslateBody(BaseModel):
+    target: Literal["labels", "choices"]
 
 
 class BackupCreate(BaseModel):
@@ -249,6 +255,23 @@ def remove_mod(instance_id: int, workshop_id: str, request: Request) -> dict:
     inst = deps.require_instance(request, instance_id)
     svc.remove_mod(deps.db(request), deps.settings(request), inst, workshop_id)
     return {"removed": workshop_id}
+
+
+@router.post("/instances/{instance_id}/mods/{workshop_id}/translate-config")
+def translate_mod_config(
+    instance_id: int, workshop_id: str, body: ModTranslateBody, request: Request,
+) -> dict:
+    inst = deps.require_instance(request, instance_id)
+    database = deps.db(request)
+    mod = next((m for m in svc.get_mods(database, inst.id) if m.workshop_id == workshop_id), None)
+    if mod is None:
+        raise HTTPException(404, f"MOD {workshop_id} 不存在")
+    schema = modconfig.describe_mod_config(deps.settings(request), mod)
+    try:
+        return ai_svc.translate_mod_config(
+            schema, mod.public_dict(), ai_svc.load_ai_settings(database), body.target)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @router.post("/instances/{instance_id}/mods/check-updates")

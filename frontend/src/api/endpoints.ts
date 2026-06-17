@@ -1,7 +1,7 @@
 import { http } from "./client";
 import type {
-  AccessEntry, AccessKind, Backup, BackupPolicy, Contact, CreateInstancePayload, Instance,
-  InstanceView, Job, Mod, ProxyCfg, SaveInfo, ShardRuntime, WorkshopSearchResult,
+  AccessEntry, AccessKind, AiSettings, Backup, BackupPolicy, Contact, CreateInstancePayload, Instance,
+  InstanceView, Job, Mod, ModConfigTranslation, ProxyCfg, SaveInfo, ShardRuntime, WorkshopSearchResult,
 } from "./types";
 
 // ---- 鉴权 ----
@@ -72,6 +72,10 @@ export const triggerModsUpdate = (id: number) =>
   http.post<Job>(`/api/instances/${id}/mods/update`).then((r) => r.data);
 export const triggerOneModUpdate = (id: number, workshopId: string) =>
   http.post<Job>(`/api/instances/${id}/mods/${workshopId}/update`).then((r) => r.data);
+export const translateModConfig = (id: number, workshopId: string, target: "labels" | "choices") =>
+  http.post<ModConfigTranslation>(
+    `/api/instances/${id}/mods/${workshopId}/translate-config`, { target },
+  ).then((r) => r.data);
 
 // ---- 备份 ----
 export const listBackups = (id: number) =>
@@ -87,6 +91,10 @@ export const getBackupPolicy = () =>
   http.get<BackupPolicy>("/api/settings/backup").then((r) => r.data);
 export const putBackupPolicy = (p: BackupPolicy) =>
   http.put<BackupPolicy>("/api/settings/backup", p).then((r) => r.data);
+export const getAiSettings = () =>
+  http.get<AiSettings>("/api/settings/ai").then((r) => r.data);
+export const putAiSettings = (p: AiSettings) =>
+  http.put<AiSettings>("/api/settings/ai", p).then((r) => r.data);
 
 // ---- 安装/更新 + 作业 ----
 export const installSteamcmd = (force = false) =>

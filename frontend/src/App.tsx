@@ -8,6 +8,7 @@ import { InstallCenter } from "./modules/install/InstallCenter";
 import { InstanceDetail } from "./modules/instances/InstanceDetail";
 import { InstanceList } from "./modules/instances/InstanceList";
 import { ProxySettings } from "./modules/proxy/ProxySettings";
+import { SettingsPage } from "./modules/settings/SettingsPage";
 import { TaskQueueProvider } from "./task-queue-context";
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
           <Route path="/install" element={<InstallCenter />} />
           <Route path="/contacts" element={<ContactsPanel />} />
           <Route path="/proxy" element={<ProxySettings />} />
+          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/about" element={<About />} />
           </Routes>
         </AppLayout>
