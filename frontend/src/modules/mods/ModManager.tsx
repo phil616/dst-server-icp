@@ -1,17 +1,19 @@
 import {
-  CloudDownloadOutlined, CloudSyncOutlined, DeleteOutlined, PlusOutlined, ReloadOutlined, ToolOutlined,
+  CloudDownloadOutlined, CloudSyncOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined,
+  ToolOutlined,
 } from "@ant-design/icons";
 import {
-  Alert, Button, Descriptions, Popconfirm, Space, Switch, Table, Tag, Tooltip, message,
+  Alert, Button, Descriptions, Divider, Empty, Form, Input, InputNumber, Modal, Popconfirm, Select,
+  Space, Switch, Table, Tag, Tooltip, Typography, message,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import dayjs from "dayjs";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   useCheckModUpdates, useRemoveMod, useRepairLibrary, useTriggerModsUpdate,
   useTriggerOneModUpdate, useUpdateMod, waitForJob,
 } from "../../api/hooks";
-import type { Mod, ModUpdateStatus } from "../../api/types";
+import type { Mod, ModConfigOption, ModUpdateStatus } from "../../api/types";
 import { useTaskQueue } from "../../task-queue-context";
 import { ModSearchModal } from "./ModSearchModal";
 
@@ -37,10 +39,233 @@ function shortVersion(v: string, max = 14): string {
   return s.length > max ? `${s.slice(0, max).trimEnd()} …` : s;
 }
 
+function hasOwn(obj: Record<string, unknown>, key: string): boolean {
+  return Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+function valueKey(v: unknown): string {
+  const s = JSON.stringify(v);
+  return s === undefined ? "undefined" : s;
+}
+
+function parseValueKey(v: string): unknown {
+  if (v === "undefined") return undefined;
+  return JSON.parse(v);
+}
+
+function valuesEqual(a: unknown, b: unknown): boolean {
+  return valueKey(a) === valueKey(b);
+}
+
+function displayConfigValue(v: unknown): string {
+  if (v === null) return "nil";
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "string") return v || "\"\"";
+  if (typeof v === "number") return String(v);
+  return valueKey(v);
+}
+
+function editableValue(v: unknown): unknown {
+  if (Array.isArray(v) || (v !== null && typeof v === "object")) return JSON.stringify(v, null, 2);
+  return v;
+}
+
+function parseEditableValue(v: unknown, sample: unknown): unknown {
+  if (typeof sample === "boolean") return Boolean(v);
+  if (typeof sample === "number") return typeof v === "number" ? v : Number(v);
+  if (Array.isArray(sample) || (sample !== null && typeof sample === "object")) {
+    return typeof v === "string" ? JSON.parse(v) : v;
+  }
+  return v ?? "";
+}
+
+function optionValue(option: ModConfigOption, config: Record<string, unknown>): unknown {
+  return hasOwn(config, option.name) ? config[option.name] : option.default;
+}
+
+function initialConfigValues(mod: Mod): Record<string, unknown> {
+  const values: Record<string, unknown> = {};
+  for (const option of mod.config_schema.options) {
+    const current = optionValue(option, mod.config);
+    values[option.name] = option.options.length ? valueKey(current) : editableValue(current);
+  }
+  const known = new Set(mod.config_schema.options.map((o) => o.name));
+  for (const [key, value] of Object.entries(mod.config)) {
+    if (!known.has(key)) values[key] = editableValue(value);
+  }
+  return values;
+}
+
+function jsonRule() {
+  return {
+    validator: async (_rule: unknown, value: unknown) => {
+      if (value === undefined || value === "") return;
+      if (typeof value !== "string") return;
+      JSON.parse(value);
+    },
+  };
+}
+
+function buildConfigFromForm(mod: Mod, formConfig: Record<string, unknown>): Record<string, unknown> {
+  const next: Record<string, unknown> = {};
+  const known = new Set(mod.config_schema.options.map((o) => o.name));
+
+  for (const option of mod.config_schema.options) {
+    const raw = formConfig[option.name];
+    const choices = new Map(option.options.map((choice) => [valueKey(choice.data), choice.data]));
+    const rawKey = String(raw);
+    const parsed = option.options.length
+      ? choices.get(rawKey) ?? parseValueKey(rawKey)
+      : parseEditableValue(raw, optionValue(option, mod.config));
+    if (hasOwn(mod.config, option.name) || !valuesEqual(parsed, option.default)) {
+      next[option.name] = parsed;
+    }
+  }
+
+  for (const [key, value] of Object.entries(mod.config)) {
+    if (known.has(key)) continue;
+    next[key] = parseEditableValue(formConfig[key], value);
+  }
+
+  return next;
+}
+
+function ConfigValueInput({ option, value }: { option?: ModConfigOption; value: unknown }) {
+  if (option?.options.length) {
+    const currentKey = valueKey(value);
+    const seen = new Set<string>();
+    const selectOptions = option.options.map((choice) => {
+      const key = valueKey(choice.data);
+      seen.add(key);
+      return {
+        value: key,
+        label: choice.description || displayConfigValue(choice.data),
+        title: choice.hover || displayConfigValue(choice.data),
+      };
+    });
+    if (!seen.has(currentKey)) {
+      selectOptions.push({ value: currentKey, label: displayConfigValue(value), title: displayConfigValue(value) });
+    }
+    return <Select options={selectOptions} />;
+  }
+  if (typeof value === "boolean") return <Switch />;
+  if (typeof value === "number") return <InputNumber style={{ width: "100%" }} />;
+  if (Array.isArray(value) || (value !== null && typeof value === "object")) {
+    return <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} />;
+  }
+  return <Input />;
+}
+
+function ModConfigModal(
+  { instanceId, mod, onClose }: { instanceId: number; mod: Mod | null; onClose: () => void },
+) {
+  const [form] = Form.useForm();
+  const update = useUpdateMod();
+  const schemaOptions = mod?.config_schema.options ?? [];
+
+  useEffect(() => {
+    if (!mod) return;
+    form.setFieldsValue({
+      config: initialConfigValues(mod),
+      raw: JSON.stringify(mod.config, null, 2),
+    });
+  }, [form, mod]);
+
+  const save = async () => {
+    if (!mod) return;
+    try {
+      const values = await form.validateFields();
+      const config = schemaOptions.length
+        ? buildConfigFromForm(mod, values.config ?? {})
+        : JSON.parse(values.raw || "{}");
+      await update.mutateAsync({ id: instanceId, workshopId: mod.workshop_id, config });
+      message.success("MOD 配置已保存");
+      onClose();
+    } catch (e) {
+      if ((e as { errorFields?: unknown[] }).errorFields) return;
+      message.error((e as Error).message);
+    }
+  };
+
+  const known = new Set(schemaOptions.map((o) => o.name));
+  const extraEntries = mod ? Object.entries(mod.config).filter(([key]) => !known.has(key)) : [];
+
+  return (
+    <Modal
+      title={mod ? `配置 ${mod.title || mod.name || mod.ref}` : "配置 MOD"}
+      open={!!mod}
+      onCancel={onClose}
+      onOk={save}
+      okText="保存"
+      confirmLoading={update.isPending}
+      destroyOnClose
+      width={720}
+    >
+      {!mod ? null : (
+        <Form form={form} layout="vertical">
+          {schemaOptions.length ? (
+            <>
+              {schemaOptions.map((option) => {
+                const value = optionValue(option, mod.config);
+                const isSwitch = !option.options.length && typeof value === "boolean";
+                const isJson = !option.options.length
+                  && (Array.isArray(value) || (value !== null && typeof value === "object"));
+                return (
+                  <Form.Item
+                    key={option.name}
+                    name={["config", option.name]}
+                    label={option.label || option.name}
+                    tooltip={option.hover || option.name}
+                    valuePropName={isSwitch ? "checked" : "value"}
+                    rules={isJson ? [jsonRule()] : undefined}
+                  >
+                    <ConfigValueInput option={option} value={value} />
+                  </Form.Item>
+                );
+              })}
+              {extraEntries.length ? (
+                <>
+                  <Divider orientation="left">其它配置</Divider>
+                  {extraEntries.map(([key, value]) => {
+                    const isSwitch = typeof value === "boolean";
+                    const isJson = Array.isArray(value) || (value !== null && typeof value === "object");
+                    return (
+                      <Form.Item
+                        key={key}
+                        name={["config", key]}
+                        label={key}
+                        valuePropName={isSwitch ? "checked" : "value"}
+                        rules={isJson ? [jsonRule()] : undefined}
+                      >
+                        <ConfigValueInput value={value} />
+                      </Form.Item>
+                    );
+                  })}
+                </>
+              ) : null}
+            </>
+          ) : (
+            <>
+              <Typography.Text type="secondary">
+                {mod.config_schema.installed ? "该 MOD 没有声明 configuration_options" : "该 MOD 尚未安装到 server/mods"}
+              </Typography.Text>
+              <Form.Item name="raw" style={{ marginTop: 12 }} rules={[jsonRule()]}>
+                <Input.TextArea autoSize={{ minRows: 8, maxRows: 14 }} />
+              </Form.Item>
+            </>
+          )}
+          {mod.config_schema.error ? <Alert type="warning" message={mod.config_schema.error} /> : null}
+        </Form>
+      )}
+    </Modal>
+  );
+}
+
 /** MOD 管理:增删 / 启停 / 看配置 / 检查更新 / 一键更新 / 确认是否真正加载到游戏。 */
 export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod[] }) {
   const [searchOpen, setSearchOpen] = useState(false);
   const [updatingWid, setUpdatingWid] = useState<string | null>(null);  // 单 MOD 更新中的 workshop_id
+  const [configuring, setConfiguring] = useState<Mod | null>(null);
   const remove = useRemoveMod();
   const update = useUpdateMod();
   const check = useCheckModUpdates();
@@ -120,7 +345,18 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
         return <Tooltip title={when && `Workshop 最近更新:${when}`}><Tag color={t.color}>{t.text}</Tag></Tooltip>;
       },
     },
-    { title: "配置项", render: (_, m) => Object.keys(m.config).length || 0 },
+    {
+      title: "配置项", render: (_, m) => {
+        const defined = m.config_schema.options.length;
+        const current = Object.keys(m.config).length;
+        return (
+          <Space size={6}>
+            <Tag color={defined ? "blue" : current ? "default" : "default"}>{defined || current}</Tag>
+            <Button size="small" icon={<EditOutlined />} onClick={() => setConfiguring(m)}>配置</Button>
+          </Space>
+        );
+      },
+    },
     { title: "启用", render: (_, m) => <Switch checked={m.enabled} size="small"
         onChange={async (v) => { try { await update.mutateAsync({ id: instanceId, workshopId: m.workshop_id, enabled: v }); } catch (e) { message.error((e as Error).message); } }} /> },
     {
@@ -170,16 +406,19 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
         expandable={{
           rowExpandable: (m) => Object.keys(m.config).length > 0,
           expandedRowRender: (m) => (
-            <Descriptions size="small" column={2} bordered title="configuration_options">
-              {Object.entries(m.config).map(([k, v]) => (
-                <Descriptions.Item key={k} label={k}>{String(v)}</Descriptions.Item>
-              ))}
-            </Descriptions>
+            Object.keys(m.config).length ? (
+              <Descriptions size="small" column={2} bordered title="configuration_options">
+                {Object.entries(m.config).map(([k, v]) => (
+                  <Descriptions.Item key={k} label={k}>{displayConfigValue(v)}</Descriptions.Item>
+                ))}
+              </Descriptions>
+            ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无已保存配置" />
           ),
         }}
       />
       <ModSearchModal instanceId={instanceId} existingIds={existingIds}
         open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ModConfigModal instanceId={instanceId} mod={configuring} onClose={() => setConfiguring(null)} />
     </Space>
   );
 }

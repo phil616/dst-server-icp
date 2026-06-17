@@ -77,11 +77,28 @@ def render_worldgen(preset: str) -> str:
 
 
 def _lua_value(v: object) -> str:
+    if v is None:
+        return "nil"
     if isinstance(v, bool):
         return _bool(v)
     if isinstance(v, (int, float)):
         return str(v)
-    return f'"{v}"'
+    if isinstance(v, list):
+        return "{ " + ", ".join(_lua_value(i) for i in v) + " }"
+    if isinstance(v, dict):
+        items = [f"[{_lua_value(str(k))}] = {_lua_value(val)}" for k, val in v.items()]
+        return "{ " + ", ".join(items) + " }"
+    return _lua_string(str(v))
+
+
+def _lua_string(v: str) -> str:
+    escaped = (
+        v.replace("\\", "\\\\")
+        .replace("\n", "\\n")
+        .replace("\r", "\\r")
+        .replace('"', '\\"')
+    )
+    return f'"{escaped}"'
 
 
 def render_modoverrides(mods: list[Mod]) -> str:

@@ -19,6 +19,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+import dst_serverd
 from .activity import setup_activity_log
 from .api import admin_router, core_router, instances_router, ws_router
 from .config import get_settings
@@ -98,7 +99,7 @@ def _register_auth_guard(app: FastAPI) -> None:
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="DST Serverd", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="DST Serverd", version=dst_serverd.__version__, lifespan=lifespan)
     _register_auth_guard(app)
     app.include_router(core_router)
     app.include_router(instances_router)

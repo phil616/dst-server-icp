@@ -120,6 +120,26 @@ export interface BackupPolicy {
 
 export type ModUpdateStatus = "latest" | "outdated" | "unknown" | "unchecked" | "manual";
 
+export interface ModConfigChoice {
+  description: string;
+  hover: string;
+  data: unknown;
+}
+
+export interface ModConfigOption {
+  name: string;
+  label: string;
+  hover: string;
+  default: unknown;
+  options: ModConfigChoice[];
+}
+
+export interface ModConfigSchema {
+  installed: boolean;
+  options: ModConfigOption[];
+  error: string;
+}
+
 export interface Mod {
   id: number;
   instance_id: number;
@@ -129,6 +149,7 @@ export interface Mod {
   source: string;
   ref: string;
   config: Record<string, unknown>;
+  config_schema: ModConfigSchema;
   title: string;
   installed_time_updated: number;
   workshop_time_updated: number;

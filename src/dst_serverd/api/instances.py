@@ -16,6 +16,7 @@ from ..parse import read_cluster_config
 from ..services import backups as backup_svc
 from ..services import importer as import_svc
 from ..services import instances as svc
+from ..services import modconfig
 from ..services import modupdate
 from ..services import save as save_svc
 from . import deps
@@ -90,6 +91,7 @@ class ShardPortsUpdate(BaseModel):
 # ---------- 组装实例视图(配置 + 实时进程状态) ----------
 def _instance_view(request: Request, inst) -> dict:
     database = deps.db(request)
+    settings = deps.settings(request)
     supervisor = deps.sup(request)
     shards = svc.get_shards(database, inst.id)
     live = {s["key"]: s for s in supervisor.status()}
@@ -103,6 +105,7 @@ def _instance_view(request: Request, inst) -> dict:
     mods_out = []
     for m in svc.get_mods(database, inst.id):
         md = m.public_dict()
+        md["config_schema"] = modconfig.describe_mod_config(settings, m)
         loaded: dict[str, dict] = {}
         for s in shards:
             rt = live.get(f"{inst.cluster_dir_name}/{s.shard_dir_name}")
