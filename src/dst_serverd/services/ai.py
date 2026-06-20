@@ -11,7 +11,7 @@ from typing import Any, Literal
 
 from ..db import Database
 
-TranslationTarget = Literal["labels", "choices"]
+TranslationTarget = Literal["labels", "choices", "guide"]
 
 _DEFAULT_API_BASE = "https://api.openai.com/v1"
 _LOG_PREVIEW_CHARS = 3000
@@ -52,9 +52,21 @@ def translate_mod_config(schema: dict, mod: dict, settings: dict, target: Transl
         _normalize_api_base(settings.get("api_base") or _DEFAULT_API_BASE),
         model,
     )
-    if not options:
-        log.info("[ai] MOD配置翻译跳过:没有 configuration_options")
-        return {"labels": {}, "choices": {}}
+    if not options or target == "guide":
+        payload = _guidance_payload(schema, mod)
+        log.info("[ai] MOD说明生成输入 payload=%s", _short_json(payload))
+        response = _chat_completion(settings, _guidance_messages(payload))
+        log.info("[ai] LLM原始说明 chars=%d preview=%s", len(response), _short_text(response))
+        parsed = _parse_json_object(response)
+        result = {"labels": {}, "choices": {}, "guidance": _normalize_guidance(parsed)}
+        log.info(
+            "[ai] MOD说明生成完成 summary=%s steps=%d files=%d warnings=%d",
+            bool(result["guidance"]["summary"]),
+            len(result["guidance"]["manual_steps"]),
+            len(result["guidance"]["files"]),
+            len(result["guidance"]["warnings"]),
+        )
+        return result
 
     payload = _translation_payload(schema, mod, target)
     log.info("[ai] MOD配置翻译输入 target=%s payload=%s", target, _short_json(payload))
@@ -77,6 +89,60 @@ def translate_mod_config(schema: dict, mod: dict, settings: dict, target: Transl
             "[ai] MOD配置值翻译未匹配到任何 data_key,通常是模型没有使用输入 choice.data_key 作为返回键"
         )
     return result
+
+
+def _guidance_payload(schema: dict, mod: dict) -> dict:
+    return {
+        "mod": {
+            "ref": mod.get("ref"),
+            "workshop_id": mod.get("workshop_id"),
+            "title": mod.get("title"),
+            "name": mod.get("name"),
+            "source": mod.get("source"),
+            "modinfo": schema.get("info") or {},
+        },
+        "installed": bool(schema.get("installed")),
+        "schema_error": schema.get("error") or "",
+        "current_configuration_options": mod.get("config") or {},
+        "configuration_options_declared": bool(schema.get("options")),
+    }
+
+
+def _guidance_messages(payload: dict) -> list[dict]:
+    return [
+        {
+            "role": "system",
+            "content": (
+                "你是《饥荒联机版》(Don't Starve Together, DST) 专用服务器 MOD 配置顾问。"
+                "你只提供只读说明,不能执行、模拟执行或声称已经执行任何文件、JSON、Lua 修改。"
+                "只能依据输入的 MOD 元信息和现有配置作答;无法确认的内容必须明确标为未知。"
+                "严禁编造未在输入中出现的 configuration_options 键和值。"
+                "输出简体中文 JSON 对象,不要 Markdown,不要 JSON 以外的文字。"
+            ),
+        },
+        {
+            "role": "user",
+            "content": (
+                "该 MOD 没有声明可供面板生成表单的 configuration_options。"
+                "请说明它大致是做什么的,用户还能从哪里了解或手工调整它。"
+                "如果它本来就没有可配置项,请明确说明。"
+                "手工步骤只能是建议,不要生成可直接自动应用的补丁或声称已经修改。\n"
+                "返回格式必须是:"
+                "{\"guidance\":{"
+                "\"summary\":\"MOD用途与是否可配置的简短说明\","
+                "\"details\":[\"补充说明\"],"
+                "\"manual_steps\":[\"用户可自行检查或修改的步骤\"],"
+                "\"files\":[{\"path\":\"文件或界面位置\",\"purpose\":\"用途\"}],"
+                "\"warnings\":[\"风险或不确定性\"]"
+                "}}。\n"
+                "可说明 DST 常见位置:MOD 自身的 modinfo.lua 用于声明元信息和配置定义;"
+                "每个 Shard 的 modoverrides.lua 保存启用状态和 configuration_options;"
+                "面板下方 JSON 对应当前 MOD 的 configuration_options。"
+                "不要建议修改 MOD 源码,除非明确标注那属于 MOD 开发者操作且更新可能覆盖。\n\n"
+                f"{json.dumps(payload, ensure_ascii=False, indent=2)}"
+            ),
+        },
+    ]
 
 
 def _translation_payload(schema: dict, mod: dict, target: TranslationTarget) -> dict:
@@ -226,7 +292,47 @@ def _normalize_translation(parsed: dict, schema: dict) -> dict:
     return {
         "labels": _normalize_str_map(parsed.get("labels")),
         "choices": _normalize_choices_map(parsed.get("choices"), schema),
+        "guidance": None,
     }
+
+
+def _normalize_guidance(parsed: dict) -> dict:
+    raw = parsed.get("guidance", parsed)
+    if not isinstance(raw, dict):
+        raw = {}
+    return {
+        "summary": _translation_text(raw.get("summary")),
+        "details": _normalize_string_list(raw.get("details")),
+        "manual_steps": _normalize_string_list(raw.get("manual_steps")),
+        "files": _normalize_guidance_files(raw.get("files")),
+        "warnings": _normalize_string_list(raw.get("warnings")),
+    }
+
+
+def _normalize_string_list(raw: Any) -> list[str]:
+    if isinstance(raw, str):
+        return [raw.strip()] if raw.strip() else []
+    if not isinstance(raw, list):
+        return []
+    return [text for item in raw if (text := _translation_text(item))]
+
+
+def _normalize_guidance_files(raw: Any) -> list[dict[str, str]]:
+    if not isinstance(raw, list):
+        return []
+    files: list[dict[str, str]] = []
+    for item in raw:
+        if isinstance(item, str):
+            if item.strip():
+                files.append({"path": item.strip(), "purpose": ""})
+            continue
+        if not isinstance(item, dict):
+            continue
+        path = _translation_text(item.get("path"))
+        purpose = _translation_text(item.get("purpose"))
+        if path or purpose:
+            files.append({"path": path, "purpose": purpose})
+    return files
 
 
 def _normalize_str_map(raw: Any) -> dict[str, str]:

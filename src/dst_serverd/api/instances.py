@@ -56,7 +56,7 @@ class ModUpdate(BaseModel):
 
 
 class ModTranslateBody(BaseModel):
-    target: Literal["labels", "choices"]
+    target: Literal["labels", "choices", "guide"]
 
 
 class BackupCreate(BaseModel):

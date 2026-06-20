@@ -72,7 +72,9 @@ export const triggerModsUpdate = (id: number) =>
   http.post<Job>(`/api/instances/${id}/mods/update`).then((r) => r.data);
 export const triggerOneModUpdate = (id: number, workshopId: string) =>
   http.post<Job>(`/api/instances/${id}/mods/${workshopId}/update`).then((r) => r.data);
-export const translateModConfig = (id: number, workshopId: string, target: "labels" | "choices") =>
+export const translateModConfig = (
+  id: number, workshopId: string, target: "labels" | "choices" | "guide",
+) =>
   http.post<ModConfigTranslation>(
     `/api/instances/${id}/mods/${workshopId}/translate-config`, { target },
   ).then((r) => r.data);

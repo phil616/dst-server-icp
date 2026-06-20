@@ -145,7 +145,11 @@ export const useTriggerOneModUpdate = () => {
 };
 export const useTranslateModConfig = () =>
   useMutation({
-    mutationFn: ({ id, workshopId, target }: { id: number; workshopId: string; target: "labels" | "choices" }) =>
+    mutationFn: (
+      { id, workshopId, target }: {
+        id: number; workshopId: string; target: "labels" | "choices" | "guide";
+      },
+    ) =>
       api.translateModConfig(id, workshopId, target),
   });
 export const useRepairLibrary = () => {

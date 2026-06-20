@@ -145,6 +145,15 @@ export interface ModConfigSchema {
 export interface ModConfigTranslation {
   labels: Record<string, string>;
   choices: Record<string, Record<string, string>>;
+  guidance: ModConfigGuidance | null;
+}
+
+export interface ModConfigGuidance {
+  summary: string;
+  details: string[];
+  manual_steps: string[];
+  files: { path: string; purpose: string }[];
+  warnings: string[];
 }
 
 export interface Mod {

@@ -25,7 +25,7 @@ const UPDATE_TAG: Record<ModUpdateStatus, { color: string; text: string }> = {
   manual: { color: "blue", text: "手动 MOD" },
 };
 
-const EMPTY_TRANSLATION: ModConfigTranslation = { labels: {}, choices: {} };
+const EMPTY_TRANSLATION: ModConfigTranslation = { labels: {}, choices: {}, guidance: null };
 
 /** 版本号格式化:纯数字版本(如 1.2.3)加 "v" 前缀;含空格/字母的字符串版本(部分 MOD 把
  *  整串塞进 modinfo 的 version 字段,如 "under the weather pt.1 v1.5.4.1")原样显示,不再被截断。 */
@@ -185,10 +185,12 @@ function mergeTranslation(prev: ModConfigTranslation, next: ModConfigTranslation
   return {
     labels: { ...prev.labels, ...next.labels },
     choices: { ...prev.choices, ...next.choices },
+    guidance: next.guidance ?? prev.guidance,
   };
 }
 
-function translationCount(result: ModConfigTranslation, target: "labels" | "choices") {
+function translationCount(result: ModConfigTranslation, target: "labels" | "choices" | "guide") {
+  if (target === "guide") return result.guidance?.summary ? 1 : 0;
   if (target === "labels") return Object.keys(result.labels).length;
   return Object.values(result.choices).reduce((sum, values) => sum + Object.keys(values).length, 0);
 }
@@ -254,7 +256,7 @@ function ModConfigModal(
   const translate = useTranslateModConfig();
   const schemaOptions = mod?.config_schema.options ?? [];
   const [translation, setTranslation] = useState<ModConfigTranslation>(EMPTY_TRANSLATION);
-  const [translating, setTranslating] = useState<"labels" | "choices" | null>(null);
+  const [translating, setTranslating] = useState<"labels" | "choices" | "guide" | null>(null);
 
   useEffect(() => {
     if (!mod) return;
@@ -281,7 +283,7 @@ function ModConfigModal(
     }
   };
 
-  const runTranslate = async (target: "labels" | "choices") => {
+  const runTranslate = async (target: "labels" | "choices" | "guide") => {
     if (!mod) return;
     setTranslating(target);
     try {
@@ -289,9 +291,13 @@ function ModConfigModal(
       setTranslation((prev) => mergeTranslation(prev, result));
       const count = translationCount(result, target);
       if (count) {
-        message.success(target === "labels" ? `配置项已翻译 ${count} 个` : `配置值已翻译 ${count} 个`);
+        message.success(target === "guide"
+          ? "AI 使用说明已生成"
+          : target === "labels" ? `配置项已翻译 ${count} 个` : `配置值已翻译 ${count} 个`);
       } else {
-        message.warning(target === "labels"
+        message.warning(target === "guide"
+          ? "AI 未返回可用的 MOD 说明,详情见系统日志"
+          : target === "labels"
           ? "AI 未返回可用的配置项翻译,详情见系统日志"
           : "AI 未返回可匹配的配置值翻译,详情见系统日志", 8);
       }
@@ -383,6 +389,68 @@ function ModConfigModal(
               <Typography.Text type="secondary">
                 {mod.config_schema.installed ? "该 MOD 没有声明 configuration_options" : "该 MOD 尚未安装到 server/mods"}
               </Typography.Text>
+              <div style={{ marginTop: 12 }}>
+                <Button
+                  size="small"
+                  disabled={translating !== null}
+                  loading={translating === "guide"}
+                  onClick={() => runTranslate("guide")}
+                >
+                  AI 使用说明
+                </Button>
+              </div>
+              {translation.guidance ? (
+                <Alert
+                  type="info"
+                  showIcon
+                  style={{ marginTop: 12 }}
+                  message="AI 只读建议"
+                  description={(
+                    <Space direction="vertical" size={8} style={{ width: "100%" }}>
+                      <Typography.Paragraph style={{ marginBottom: 0 }}>
+                        {translation.guidance.summary || "未提供用途摘要"}
+                      </Typography.Paragraph>
+                      {translation.guidance.details.length ? (
+                        <ul style={{ margin: 0, paddingInlineStart: 20 }}>
+                          {translation.guidance.details.map((item, index) => <li key={index}>{item}</li>)}
+                        </ul>
+                      ) : null}
+                      {translation.guidance.manual_steps.length ? (
+                        <div>
+                          <Typography.Text strong>手工检查/修改建议</Typography.Text>
+                          <ol style={{ margin: "4px 0 0", paddingInlineStart: 20 }}>
+                            {translation.guidance.manual_steps.map((item, index) => <li key={index}>{item}</li>)}
+                          </ol>
+                        </div>
+                      ) : null}
+                      {translation.guidance.files.length ? (
+                        <div>
+                          <Typography.Text strong>相关位置</Typography.Text>
+                          <ul style={{ margin: "4px 0 0", paddingInlineStart: 20 }}>
+                            {translation.guidance.files.map((file, index) => (
+                              <li key={`${file.path}-${index}`}>
+                                <Typography.Text code>{file.path || "未指定"}</Typography.Text>
+                                {file.purpose ? `：${file.purpose}` : ""}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null}
+                      {translation.guidance.warnings.length ? (
+                        <div>
+                          <Typography.Text strong type="warning">注意</Typography.Text>
+                          <ul style={{ margin: "4px 0 0", paddingInlineStart: 20 }}>
+                            {translation.guidance.warnings.map((item, index) => <li key={index}>{item}</li>)}
+                          </ul>
+                        </div>
+                      ) : null}
+                      <Typography.Text type="secondary">
+                        AI 不会修改任何文件或下方 JSON；需要调整时请由用户确认后手工编辑并保存。
+                      </Typography.Text>
+                    </Space>
+                  )}
+                />
+              ) : null}
               <Form.Item name="raw" style={{ marginTop: 12 }} rules={[jsonRule()]}>
                 <Input.TextArea autoSize={{ minRows: 8, maxRows: 14 }} />
               </Form.Item>
