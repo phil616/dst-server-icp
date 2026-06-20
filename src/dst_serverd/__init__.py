@@ -6,4 +6,4 @@
 offset 重新接管已运行的 Shard,不打断玩家。
 """
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
