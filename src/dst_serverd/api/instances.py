@@ -39,6 +39,7 @@ class InstanceCreate(BaseModel):
     cluster_password: str = ""
     cluster_intention: str = "cooperative"
     cluster_description: str = ""
+    server_language: str = "zh"
     caves: bool = True
 
 
@@ -68,6 +69,7 @@ class InstanceUpdate(BaseModel):
     cluster_description: str | None = None
     cluster_password: str | None = None
     cluster_intention: str | None = None
+    server_language: str | None = None
     game_mode: str | None = None
     max_players: int | None = None
     pvp: bool | None = None

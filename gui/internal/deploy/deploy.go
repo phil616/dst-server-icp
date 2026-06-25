@@ -5,6 +5,7 @@ package deploy
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"dst-deployer/internal/config"
@@ -115,11 +116,15 @@ func (d *Deployer) runScript(ctx context.Context, p config.Profile, action, mirr
 	if err := d.uploadScript(cli); err != nil {
 		return err
 	}
-	cmd := fmt.Sprintf("bash %s %s", remoteScriptPath, action)
+	cmd := fmt.Sprintf("bash %s %s", shellQuote(remoteScriptPath), shellQuote(action))
 	if mirror != "" {
-		cmd += fmt.Sprintf(" mirror=%s", mirror)
+		cmd += fmt.Sprintf(" mirror=%s", shellQuote(mirror))
 	}
 	return d.run(ctx, cli, fmt.Sprintf("执行 install-dst.sh %s", action), cmd)
+}
+
+func shellQuote(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
 // Install 安装管理器本体。

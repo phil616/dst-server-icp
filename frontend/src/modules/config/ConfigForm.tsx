@@ -25,6 +25,8 @@ export function ConfigForm({ instance }: { instance: Instance }) {
         <Col span={12}><Form.Item name="name" label="房间名称 (cluster_name)" rules={[{ required: true }]}><Input /></Form.Item></Col>
         <Col span={12}><Form.Item name="cluster_description" label="房间描述"><Input /></Form.Item></Col>
         <Col span={12}><Form.Item name="cluster_password" label="房间密码(空=无密码)"><Input.Password /></Form.Item></Col>
+        <Col span={6}><Form.Item name="server_language" label="服务语言">
+          <Input placeholder="zh" /></Form.Item></Col>
         <Col span={6}><Form.Item name="game_mode" label="游戏模式">
           <Select options={GAME_MODES} /></Form.Item></Col>
         <Col span={6}><Form.Item name="cluster_intention" label="风格">

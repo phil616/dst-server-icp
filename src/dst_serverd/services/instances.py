@@ -32,11 +32,14 @@ GAME_MODES = {"relaxed", "survival", "endless", "wilderness", "lightsout"}
 INTENTIONS = {"cooperative", "competitive", "social", "madness"}
 ACCESS_KINDS = {"admin", "whitelist", "blocklist"}
 KLEI_ID_RE = re.compile(r"^(KU|OU)_[A-Za-z0-9_-]{4,}$")
+LANGUAGE_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_-]{0,31}$")
 MASTER_PRESET = "SURVIVAL_TOGETHER"
 CAVES_PRESET = "DST_CAVE"
+DEFAULT_SERVER_LANGUAGE = "zh"
 # 可经 PATCH 更新的房间/元信息/玩法/网络字段
 EDITABLE_FIELDS = {
     "name", "cluster_description", "cluster_password", "cluster_intention",
+    "server_language",
     "game_mode", "max_players", "pvp", "pause_when_empty", "max_snapshots",
     "tick_rate", "vote_enabled", "autosaver_enabled", "whitelist_slots",
     "lan_only_cluster", "online", "token",
@@ -45,6 +48,13 @@ EDITABLE_FIELDS = {
 
 class InstanceError(ValueError):
     pass
+
+
+def normalize_server_language(value: str | None) -> str:
+    lang = (value or DEFAULT_SERVER_LANGUAGE).strip()
+    if not LANGUAGE_RE.match(lang):
+        raise InstanceError(f"server_language 非法:{value!r}")
+    return lang
 
 
 # ---------- 读 ----------
@@ -131,12 +141,14 @@ def create_instance(
     cluster_password: str = "",
     cluster_intention: str = "cooperative",
     cluster_description: str = "",
+    server_language: str = DEFAULT_SERVER_LANGUAGE,
     caves: bool = True,
 ) -> Instance:
     if game_mode not in GAME_MODES:
         raise InstanceError(f"game_mode 非法:{game_mode}")
     if cluster_intention not in INTENTIONS:
         raise InstanceError(f"cluster_intention 非法:{cluster_intention}")
+    server_language = normalize_server_language(server_language)
     if online and not token.strip():
         raise InstanceError("在线服必须提供 cluster_token(见 DESIGN.md 3.1#2)")
 
@@ -147,12 +159,12 @@ def create_instance(
     inst_id = db.execute(
         "INSERT INTO server_instances (name, cluster_dir_name, online, game_mode, pvp, "
         "max_players, max_snapshots, pause_when_empty, cluster_password, cluster_intention, "
-        "cluster_description, cluster_key, master_port, token, created_at, desired_status, status) "
-        "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'stopped','created')",
+        "cluster_description, server_language, cluster_key, master_port, token, created_at, "
+        "desired_status, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'stopped','created')",
         (
             name, cluster_dir, int(online), game_mode, int(pvp), max_players, max_snapshots,
             int(pause_when_empty), cluster_password, cluster_intention, cluster_description,
-            cluster_key, master_port, token.strip(), time.time(),
+            server_language, cluster_key, master_port, token.strip(), time.time(),
         ),
     )
 
@@ -207,6 +219,8 @@ def update_instance(db: Database, settings: Settings, inst: Instance, fields: di
         raise InstanceError(f"game_mode 非法:{data['game_mode']}")
     if "cluster_intention" in data and data["cluster_intention"] not in INTENTIONS:
         raise InstanceError(f"cluster_intention 非法:{data['cluster_intention']}")
+    if "server_language" in data:
+        data["server_language"] = normalize_server_language(data["server_language"])
     max_players = data.get("max_players", inst.max_players)
     if "whitelist_slots" in data and data["whitelist_slots"] > max_players:
         raise InstanceError("whitelist_slots 不能大于 max_players")

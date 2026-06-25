@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS server_instances (
     cluster_password    TEXT NOT NULL DEFAULT '',
     cluster_intention   TEXT NOT NULL DEFAULT 'cooperative',
     cluster_description  TEXT NOT NULL DEFAULT '',
+    server_language     TEXT NOT NULL DEFAULT 'zh',
     cluster_key         TEXT NOT NULL DEFAULT '',
     master_port         INTEGER NOT NULL DEFAULT 10888,
     token               TEXT NOT NULL DEFAULT '',
@@ -126,6 +127,7 @@ _MIGRATIONS: dict[str, dict[str, str]] = {
         "autosaver_enabled": "INTEGER NOT NULL DEFAULT 1",
         "whitelist_slots": "INTEGER NOT NULL DEFAULT 0",
         "lan_only_cluster": "INTEGER NOT NULL DEFAULT 0",
+        "server_language": "TEXT NOT NULL DEFAULT 'zh'",
     },
     "backups": {
         "trigger": "TEXT NOT NULL DEFAULT 'manual'",

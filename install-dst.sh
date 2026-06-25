@@ -293,7 +293,7 @@ sync_deps() {
        UV_CACHE_DIR="$UV_CACHE_DIR" \
        UV_PYTHON="$PYTHON_BIN" \
        UV_PYTHON_DOWNLOADS=never \
-       "$UV_BIN" sync $sync_args --directory "$INSTALL_DIR" \
+       "$UV_BIN" --config-file "$INSTALL_DIR/uv.toml" sync $sync_args --directory "$INSTALL_DIR" \
     || die "uv sync 失败(检查镜像 $MIRROR 是否可达,解释器 $PYTHON_BIN 是否可用)"
 }
 
@@ -317,8 +317,10 @@ Environment=HOME=/home/$RUN_USER
 # 解释器固定为发布包内置 Python,禁止 uv 联网下载
 Environment=UV_PYTHON=$PYTHON_BIN
 Environment=UV_PYTHON_DOWNLOADS=never
+# 显式指定项目级 uv 配置,避免 systemd 的 ExecStartPre 在部分 uv/工作目录场景下绕过 PyPI 镜像。
+Environment=UV_CONFIG_FILE=$INSTALL_DIR/uv.toml
 # 启动前同步锁定依赖(幂等,命中缓存极快);前端产物已随发布包整合进 static/
-ExecStartPre=$UV_BIN sync --frozen --no-dev --directory $INSTALL_DIR
+ExecStartPre=$UV_BIN --config-file $INSTALL_DIR/uv.toml sync --frozen --no-dev --directory $INSTALL_DIR
 # 主 PID 即 Python;run() 读取 config.yaml 的 host/port 绑定
 ExecStart=$INSTALL_DIR/.venv/bin/python -m dst_serverd.main
 Restart=always

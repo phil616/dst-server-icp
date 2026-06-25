@@ -27,6 +27,8 @@ def render_cluster_ini(inst: Instance, has_secondary: bool) -> str:
         f"cluster_description = {inst.cluster_description}",
         f"cluster_password = {inst.cluster_password}",
         f"cluster_intention = {inst.cluster_intention}",
+        f"server_language = {inst.server_language}",
+        f"cluster_language = {inst.server_language}",
         f"offline_cluster = {_bool(not inst.online)}",
         f"lan_only_cluster = {_bool(inst.lan_only_cluster)}",
         f"tick_rate = {inst.tick_rate}",
