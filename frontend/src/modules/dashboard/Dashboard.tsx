@@ -66,7 +66,8 @@ export function Dashboard() {
       <Card title="Shard 运行状态" size="small">
         {rows.length === 0 && !isLoading
           ? <Empty description="暂无实例,去『实例管理』新建一个" />
-          : <Table rowKey="key" size="small" loading={isLoading} dataSource={rows} columns={columns} pagination={false} />}
+          : <Table rowKey="key" size="small" loading={isLoading} dataSource={rows} columns={columns}
+              pagination={false} scroll={{ x: "max-content" }} />}
       </Card>
     </>
   );

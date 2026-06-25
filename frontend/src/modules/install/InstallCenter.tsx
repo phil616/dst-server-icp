@@ -53,6 +53,7 @@ export function InstallCenter() {
 
       <Card title="作业记录" size="small">
         <Table rowKey="id" size="small" dataSource={jobs} columns={cols} pagination={{ pageSize: 8 }}
+          scroll={{ x: "max-content" }}
           locale={{ emptyText: "暂无作业" }} />
       </Card>
 

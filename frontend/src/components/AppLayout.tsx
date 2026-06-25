@@ -73,7 +73,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       .sort((a, b) => b.length - a.length)[0] ?? "/";
 
   return (
-    <Layout style={{ minHeight: "100vh", background: colors.canvas }}>
+    <Layout style={{ minHeight: "100vh", minWidth: 0, background: colors.canvas }}>
       <Sider theme={mode} breakpoint="lg" collapsedWidth={0}
         style={{ background: colors.canvas, borderInlineEnd: `1px solid ${colors.hairline}` }}>
         <div style={{ height: 56, display: "flex", alignItems: "center", gap: 8, padding: "0 20px",
@@ -84,7 +84,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         <Menu theme={mode} mode="inline" selectedKeys={[selected]} items={ITEMS}
           style={{ background: "transparent", borderInlineEnd: "none" }} />
       </Sider>
-      <Layout style={{ background: colors.canvas }}>
+      <Layout style={{ minWidth: 0, background: colors.canvas }}>
         <Header style={{ display: "flex", alignItems: "center", gap: 16, padding: "0 20px",
           background: colors.canvas, borderBottom: `1px solid ${colors.hairline}` }}>
           <ProfileOutlined style={{ color: colors.ink }} />
@@ -117,7 +117,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           background: colors.canvas }}>
           <Breadcrumb items={buildCrumbs(loc.pathname)} />
         </div>
-        <Content style={{ padding: 20, overflow: "auto", background: colors.canvas }}>{children}</Content>
+        <Content style={{ minWidth: 0, padding: 20, overflow: "auto", background: colors.canvas }}>{children}</Content>
         <Footer style={{ textAlign: "center", background: colors.canvas, color: colors.mute,
           fontSize: 13, padding: "16px 20px", borderTop: `1px solid ${colors.hairline}` }}>
           饥荒服务器控制面板 ·{" "}

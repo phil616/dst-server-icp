@@ -95,6 +95,7 @@ export function BackupsPanel({ instance }: { instance: Instance }) {
       <Card size="small" title="文件级备份"
         extra={<Button type="primary" icon={<CloudUploadOutlined />} loading={backup.isPending} onClick={doBackup}>立即备份</Button>}>
         <Table rowKey="id" size="small" dataSource={backups} columns={cols} pagination={{ pageSize: 6 }}
+          scroll={{ x: "max-content" }}
           locale={{ emptyText: "暂无备份" }} />
       </Card>
 

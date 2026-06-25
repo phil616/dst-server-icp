@@ -65,7 +65,8 @@ export function InstanceList() {
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>新建实例</Button>
         </Space>
       }>
-      <Table rowKey={(v) => v.instance.id} size="small" loading={isLoading} dataSource={views} columns={columns} pagination={false} />
+      <Table rowKey={(v) => v.instance.id} size="small" loading={isLoading} dataSource={views}
+        columns={columns} pagination={false} scroll={{ x: "max-content" }} />
       <CreateInstanceModal open={createOpen} onClose={() => setCreateOpen(false)} />
       <ImportInstanceModal open={importOpen} onClose={() => setImportOpen(false)} />
     </Card>

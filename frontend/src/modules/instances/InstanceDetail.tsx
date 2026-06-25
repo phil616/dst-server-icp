@@ -74,7 +74,8 @@ export function InstanceDetail() {
         <Descriptions.Item label="master_port">{instance.master_port}</Descriptions.Item>
         <Descriptions.Item label="Token">{instance.has_token ? "已配置" : "无"}</Descriptions.Item>
       </Descriptions>
-      <Table rowKey="id" size="small" dataSource={shards} columns={shardCols} pagination={false} />
+      <Table rowKey="id" size="small" dataSource={shards} columns={shardCols}
+        pagination={false} scroll={{ x: "max-content" }} />
     </Space>
   );
 

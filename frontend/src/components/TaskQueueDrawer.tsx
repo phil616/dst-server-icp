@@ -100,6 +100,7 @@ export function TaskQueueDrawer({ open, onClose }: { open: boolean; onClose: () 
       </div>
       <Table<Job>
         rowKey="id" size="small" columns={columns} dataSource={jobs} loading={isLoading}
+        scroll={{ x: "max-content" }}
         pagination={jobs.length > 12 ? { pageSize: 12 } : false}
         locale={{ emptyText: <Empty description="暂无任务" /> }}
       />

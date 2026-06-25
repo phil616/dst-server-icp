@@ -94,7 +94,7 @@ export function ModSearchModal(
         {results !== null && (
           <Table
             rowKey="workshop_id" size="small" columns={columns} dataSource={results}
-            pagination={false} scroll={{ y: 380 }}
+            pagination={false} scroll={{ x: "max-content", y: 380 }}
             locale={{ emptyText: <Empty description="无结果" /> }}
           />
         )}

@@ -1,8 +1,13 @@
-import { GithubOutlined, InfoCircleOutlined, UserOutlined } from "@ant-design/icons";
+import { GithubOutlined, InfoCircleOutlined, QqOutlined, UserOutlined } from "@ant-design/icons";
 import { Card, Descriptions, Space } from "antd";
 import { useHealth } from "../../api/hooks";
 import { MONO } from "../../theme";
 import { useThemeMode } from "../../theme-context";
+
+const QQ_GROUP_QR_SIZE = {
+  width: 1154,
+  height: 2052,
+};
 
 export function About() {
   const { data: health } = useHealth();
@@ -31,6 +36,26 @@ export function About() {
           <Descriptions.Item label={<span><GithubOutlined /> GitHub</span>}>
             <a href="https://github.com/phil616/dst-server-icp" target="_blank" rel="noreferrer"
               style={{ fontFamily: MONO, color: COLORS.ink }}>github.com/phil616/dst-server-icp</a>
+          </Descriptions.Item>
+          <Descriptions.Item label={<span><QqOutlined /> QQ群</span>}>
+            <Space direction="vertical" size={8}>
+              <span style={{ fontFamily: MONO, fontWeight: 700, color: COLORS.ink }}>614014658</span>
+              <img
+                src="/QQGroup.jpg"
+                alt="QQ群 614014658 二维码"
+                width={QQ_GROUP_QR_SIZE.width}
+                height={QQ_GROUP_QR_SIZE.height}
+                style={{
+                  display: "block",
+                  width: "min(180px, 100%)",
+                  height: "auto",
+                  aspectRatio: `${QQ_GROUP_QR_SIZE.width} / ${QQ_GROUP_QR_SIZE.height}`,
+                  borderRadius: 8,
+                  border: `1px solid ${COLORS.hairline}`,
+                  objectFit: "contain",
+                }}
+              />
+            </Space>
           </Descriptions.Item>
         </Descriptions>
       </Card>

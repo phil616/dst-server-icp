@@ -604,6 +604,7 @@ export function ModManager({ instanceId, mods }: { instanceId: number; mods: Mod
       </Space>
       <Table
         rowKey="id" size="small" dataSource={mods} columns={columns} pagination={false}
+        scroll={{ x: "max-content" }}
         locale={{ emptyText: "暂无 MOD" }}
         expandable={{
           rowExpandable: (m) => configEntriesForDisplay(m).length > 0,

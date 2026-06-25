@@ -127,6 +127,7 @@ export function ContactsPanel() {
         message="只要有玩家加入到游戏，系统就会自动把其昵称与 Klei ID 记到这里，方便对好友 ID 做提示与复制。这是一份纯本地备忘，与访问控制（管理员/白名单/黑名单）互不影响。" />
       <Table<Contact>
         rowKey="klei_id" size="small" columns={columns} dataSource={rows} loading={isLoading}
+        scroll={{ x: "max-content" }}
         pagination={rows.length > 20 ? { pageSize: 20 } : false}
         locale={{ emptyText: <Empty description="还没有记录。等有玩家加入游戏后会自动出现在这里。" /> }}
       />
