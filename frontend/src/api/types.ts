@@ -69,6 +69,7 @@ export interface Instance {
   cluster_intention: string;
   cluster_description: string;
   server_language: string;
+  cluster_language: string;
   cluster_key: string;
   master_port: number;
   token: string;
@@ -242,4 +243,5 @@ export interface CreateInstancePayload {
   cluster_password?: string;
   cluster_description?: string;
   server_language?: string;
+  cluster_language?: string;
 }

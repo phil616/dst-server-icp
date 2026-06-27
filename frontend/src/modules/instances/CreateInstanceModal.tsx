@@ -1,7 +1,7 @@
 import { Form, Input, InputNumber, Modal, Select, Switch, message } from "antd";
 import { useCreateInstance } from "../../api/hooks";
 import type { CreateInstancePayload } from "../../api/types";
-import { CLUSTER_INTENTIONS, GAME_MODES } from "../../constants";
+import { CLUSTER_INTENTIONS, GAME_MODES, LANGUAGE_OPTIONS } from "../../constants";
 
 export function CreateInstanceModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [form] = Form.useForm();
@@ -25,7 +25,8 @@ export function CreateInstanceModal({ open, onClose }: { open: boolean; onClose:
       confirmLoading={create.isPending} okText="创建" destroyOnClose>
       <Form form={form} layout="vertical" initialValues={{
         online: true, caves: true, pvp: false, game_mode: "survival",
-        max_players: 6, cluster_intention: "cooperative", server_language: "zh", token: "",
+        max_players: 6, cluster_intention: "cooperative",
+        server_language: "zh", cluster_language: "zh", token: "",
       }}>
         <Form.Item name="name" label="服务器名称" rules={[{ required: true, message: "请输入名称" }]}>
           <Input placeholder="My DST Server" />
@@ -36,8 +37,11 @@ export function CreateInstanceModal({ open, onClose }: { open: boolean; onClose:
         <Form.Item name="cluster_intention" label="风格">
           <Select options={CLUSTER_INTENTIONS} />
         </Form.Item>
-        <Form.Item name="server_language" label="服务语言">
-          <Input placeholder="zh" />
+        <Form.Item name="server_language" label="服务器语言">
+          <Select options={LANGUAGE_OPTIONS} />
+        </Form.Item>
+        <Form.Item name="cluster_language" label="房间列表语言">
+          <Select options={LANGUAGE_OPTIONS} />
         </Form.Item>
         <Form.Item name="max_players" label="人数上限"><InputNumber min={1} max={64} /></Form.Item>
         <Form.Item name="caves" label="包含洞穴(双 Shard)" valuePropName="checked"><Switch /></Form.Item>

@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS server_instances (
     cluster_intention   TEXT NOT NULL DEFAULT 'cooperative',
     cluster_description  TEXT NOT NULL DEFAULT '',
     server_language     TEXT NOT NULL DEFAULT 'zh',
+    cluster_language    TEXT NOT NULL DEFAULT 'zh',
     cluster_key         TEXT NOT NULL DEFAULT '',
     master_port         INTEGER NOT NULL DEFAULT 10888,
     token               TEXT NOT NULL DEFAULT '',
@@ -128,6 +129,7 @@ _MIGRATIONS: dict[str, dict[str, str]] = {
         "whitelist_slots": "INTEGER NOT NULL DEFAULT 0",
         "lan_only_cluster": "INTEGER NOT NULL DEFAULT 0",
         "server_language": "TEXT NOT NULL DEFAULT 'zh'",
+        "cluster_language": "TEXT NOT NULL DEFAULT 'zh'",
     },
     "backups": {
         "trigger": "TEXT NOT NULL DEFAULT 'manual'",
@@ -161,9 +163,16 @@ class Database:
     def _migrate(self) -> None:
         for table, cols in _MIGRATIONS.items():
             existing = {r["name"] for r in self._conn.execute(f"PRAGMA table_info({table})")}
+            added: set[str] = set()
             for col, ddl in cols.items():
                 if col not in existing:
                     self._conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}")
+                    added.add(col)
+            if table == "server_instances" and "cluster_language" in added:
+                self._conn.execute(
+                    "UPDATE server_instances SET cluster_language = server_language "
+                    "WHERE server_language <> ''"
+                )
 
     # ---- 读 ----
     def query(self, sql: str, params: Iterable = ()) -> list[sqlite3.Row]:

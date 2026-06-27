@@ -23,6 +23,12 @@ export const CLUSTER_INTENTIONS: LabeledOption[] = [
   { value: "madness", label: "疯狂" },
 ];
 
+/** DST 语言选项。界面只展示中文标签,实际提交 DST 需要的语言码。 */
+export const LANGUAGE_OPTIONS: LabeledOption[] = [
+  { value: "zh", label: "中文" },
+  { value: "en", label: "英文" },
+];
+
 const labelOf = (opts: LabeledOption[], v: string): string =>
   opts.find((o) => o.value === v)?.label ?? v;
 

@@ -22,6 +22,7 @@ class Instance:
     cluster_intention: str
     cluster_description: str
     server_language: str
+    cluster_language: str
     cluster_key: str
     master_port: int
     token: str
@@ -50,6 +51,7 @@ class Instance:
             cluster_intention=r["cluster_intention"],
             cluster_description=r["cluster_description"],
             server_language=r["server_language"],
+            cluster_language=r["cluster_language"],
             cluster_key=r["cluster_key"],
             master_port=r["master_port"],
             token=r["token"],

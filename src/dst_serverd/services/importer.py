@@ -111,14 +111,14 @@ def _parse_mods(cluster_root: Path) -> dict[str, dict]:
 
 def _finalize_files(
     cdir: Path, master_port: int, resolved: list[tuple[str, int, int, int]],
-    access: list, online: bool, token: str, server_language: str,
+    access: list, online: bool, token: str, server_language: str, cluster_language: str,
 ) -> None:
     """只就地改端口/语言 + 写访问列表 + (在线)写 token,保留其它字段。"""
     ci_path = cdir / "cluster.ini"
     ci_text = ci_path.read_text(encoding="utf-8")
     ci_text = set_ini_value(ci_text, "SHARD", "master_port", master_port)
     ci_text = set_ini_value(ci_text, "NETWORK", "server_language", server_language)
-    ci_text = set_ini_value(ci_text, "NETWORK", "cluster_language", server_language)
+    ci_text = set_ini_value(ci_text, "NETWORK", "cluster_language", cluster_language)
     ci_path.write_text(ci_text, encoding="utf-8")
     for dir_name, sp, msp, ap in resolved:
         sp_path = cdir / dir_name / "server.ini"
@@ -193,6 +193,14 @@ def import_archive(
             )
         except inst_svc.InstanceError:
             server_language = inst_svc.DEFAULT_SERVER_LANGUAGE
+        try:
+            cluster_language = inst_svc.normalize_cluster_language(
+                _get(ci, "NETWORK", "cluster_language")
+                or server_language
+                or inst_svc.DEFAULT_CLUSTER_LANGUAGE
+            )
+        except inst_svc.InstanceError:
+            cluster_language = server_language
 
         # 端口:优先沿用存档原值(保住防火墙/端口转发),冲突才另分配
         used_sp = used_ports(db, "server_port")
@@ -205,15 +213,16 @@ def import_archive(
         inst_id = db.execute(
             "INSERT INTO server_instances (name, cluster_dir_name, online, game_mode, pvp, "
             "max_players, max_snapshots, pause_when_empty, cluster_password, cluster_intention, "
-            "cluster_description, server_language, cluster_key, master_port, token, tick_rate, "
-            "vote_enabled, autosaver_enabled, whitelist_slots, lan_only_cluster, created_at, "
-            "desired_status, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'stopped','imported')",
+            "cluster_description, server_language, cluster_language, cluster_key, master_port, "
+            "token, tick_rate, vote_enabled, autosaver_enabled, whitelist_slots, "
+            "lan_only_cluster, created_at, desired_status, status) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'stopped','imported')",
             (
                 name, cluster_dir, int(online), game_mode, int(_b(_get(ci, "GAMEPLAY", "pvp"), False)),
                 _i(_get(ci, "GAMEPLAY", "max_players"), 6), _i(_get(ci, "MISC", "max_snapshots"), 6),
                 int(_b(_get(ci, "GAMEPLAY", "pause_when_empty"), True)),
                 _get(ci, "NETWORK", "cluster_password"), intention,
-                _get(ci, "NETWORK", "cluster_description"), server_language,
+                _get(ci, "NETWORK", "cluster_description"), server_language, cluster_language,
                 cluster_key, master_port, token,
                 _i(_get(ci, "NETWORK", "tick_rate"), 15),
                 int(_b(_get(ci, "GAMEPLAY", "vote_enabled"), True)),
@@ -263,10 +272,10 @@ def import_archive(
         shutil.move(str(root), str(target))
 
         # 文件落定:只**就地改端口**,保留 [ACCOUNT] encode_user_path、Secondary id、
-        # cloud_id、modoverrides、世界数据等所有原字段;语言字段按 DB 规范补齐/对齐。
+        # cloud_id、modoverrides、世界数据等所有原字段;语言字段按解析结果分别补齐。
         _finalize_files(
             target, master_port, resolved, inst_svc.get_access(db, inst_id),
-            online, token, server_language)
+            online, token, server_language, cluster_language)
 
         inst = inst_svc.get_instance(db, inst_id)
         assert inst is not None
